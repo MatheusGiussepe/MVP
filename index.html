@@ -194,8 +194,10 @@ nav.tabs svg{width:22px; height:22px}
         <h3>Seu lucro mês a mês</h3>
         <div class="hist" id="rx-hist"></div>
         <p class="hint" id="rx-hist-hint"></p>
+        <div style="margin-top:10px"><label for="mesRef">Mês de referência</label><input type="month" id="mesRef"></div>
+        <p class="err" id="hist-err" role="alert"></p>
         <div class="row">
-          <button class="btn small" id="saveMonth">Registrar este mês</button>
+          <button class="btn small" id="saveMonth">Registrar mês</button>
           <button class="btn small ghost" id="editData">Atualizar números</button>
         </div>
       </div>
@@ -424,7 +426,7 @@ $('#go').onclick = () => {
 $('#demo').onclick = () => {
   S = {empresa:{nome:'Studio Código', ativ:'profissionais', cli:'pj', fat:60000, folha:12000, custos:20000, mono:0},
        missoes:{raiox:true}, chat:[],
-       historico:[{mes:'Jun',lucro:.24,imposto:.181},{mes:'Jul',lucro:.27,imposto:.181},{mes:'Ago',lucro:.26,imposto:.181}]};
+       historico:[{mes:'Jun',lucro:.24,imposto:.181},{mes:'Jul',lucro:.27,imposto:.181},{mes:'Ago',lucro:.26,imposto:.181}].map((x,i)=>({...x, ano:new Date().getFullYear(), mesN:6+i}))};
   save(); startApp();
 };
 
@@ -535,25 +537,76 @@ function renderRaiox(){
 
 function renderHist(c){
   const e = S.empresa;
-  const h = S.historico.slice(-5);
+  normalizarHistorico();
+  const h = S.historico.slice(-6);
   const box = $('#rx-hist');
+  const multiAno = new Set(h.map(x=>x.ano)).size > 1;
   if(!h.length){ box.innerHTML=''; $('#rx-hist-hint').textContent = 'Registre seus números todo mês para ver se o lucro está subindo ou caindo.'; return; }
   const max = Math.max(...h.map(x=>Math.max(x.lucro,x.imposto)), .3);
   box.innerHTML = h.map(x => `<div class="col"><div style="display:flex;gap:3px;align-items:flex-end;height:90px;width:100%;justify-content:center">
     <div class="bar tx" style="height:${Math.max(x.imposto,0)/max*90}px;width:16px" title="Imposto ${pct(x.imposto)}"></div>
-    <div class="bar" style="height:${Math.max(x.lucro,0)/max*90}px;width:16px" title="Lucro ${pct(x.lucro)}"></div></div><span>${x.mes}</span></div>`).join('');
+    <div class="bar" style="height:${Math.max(x.lucro,0)/max*90}px;width:16px" title="Lucro ${pct(x.lucro)}"></div></div><span>${x.mes}${multiAno ? '/'+String(x.ano).slice(2) : ''}</span></div>`).join('');
   $('#rx-hist-hint').textContent = 'Amarelo: impostos. Verde: lucro. Em % do faturamento.';
 }
 
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const ordem = x => x.ano*12 + x.mesN;
+
+/* Último mês que já fechou: em setembro, o número que o dono tem na mão é o de agosto. */
+function mesFechado(){
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+  return {ano:d.getFullYear(), mesN:d.getMonth()+1};
+}
+const campoMes = ({ano,mesN}) => `${ano}-${String(mesN).padStart(2,'0')}`;
+
+/* Registros antigos só tinham o nome do mês: completa ano e número, e ordena. */
+function normalizarHistorico(){
+  const hoje = new Date(), anoAtual = hoje.getFullYear(), mesAtual = hoje.getMonth()+1;
+  let mudou = false;
+  S.historico = (S.historico||[]).map(x => {
+    if(x.ano && x.mesN) return x;
+    const i = MESES.findIndex(m => m.toLowerCase() === String(x.mes||'').toLowerCase());
+    const mesN = i>=0 ? i+1 : mesAtual;
+    mudou = true;
+    return {...x, mesN, mes:MESES[mesN-1], ano: mesN > mesAtual ? anoAtual-1 : anoAtual};
+  });
+  S.historico.sort((a,b) => ordem(a)-ordem(b));
+  if(mudou) save();
+}
+
+function iniciarSeletorMes(){
+  const el = $('#mesRef'); if(!el) return;
+  const hoje = new Date();
+  el.max = campoMes({ano:hoje.getFullYear(), mesN:hoje.getMonth()+1});
+  el.min = campoMes({ano:hoje.getFullYear()-5, mesN:1});
+  if(!el.value) el.value = campoMes(mesFechado());
+}
+iniciarSeletorMes();
+$('#mesRef').addEventListener('input', () => $('#hist-err').textContent='');
+
 $('#saveMonth').onclick = () => {
-  const c = calc(S.empresa); const m = new Date().toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
-  const label = m.charAt(0).toUpperCase()+m.slice(1);
-  const last = S.historico[S.historico.length-1];
-  const entry = {mes:label, lucro:c.lucro/S.empresa.fat, imposto:c.acima?0:c.aliq};
-  if(last && last.mes===label) S.historico[S.historico.length-1]=entry; else S.historico.push(entry);
+  const v = $('#mesRef').value;
+  if(!/^\d{4}-\d{2}$/.test(v)){ $('#hist-err').textContent='Escolha o mês que você quer registrar.'; return; }
+  const ano = Number(v.slice(0,4)), mesN = Number(v.slice(5,7));
+  const hoje = new Date();
+  if(mesN<1 || mesN>12){ $('#hist-err').textContent='Mês inválido.'; return; }
+  if(ano*12+mesN > hoje.getFullYear()*12 + hoje.getMonth()+1){
+    $('#hist-err').textContent='Esse mês ainda não chegou.'; return;
+  }
+  $('#hist-err').textContent='';
+  const c = calc(S.empresa);
+  const entry = {ano, mesN, mes:MESES[mesN-1], lucro:c.lucro/S.empresa.fat, imposto:c.acima?0:c.aliq};
+  const i = S.historico.findIndex(x => x.ano===ano && x.mesN===mesN);
+  const atualizou = i>=0;
+  if(atualizou) S.historico[i]=entry; else S.historico.push(entry);
+  S.historico.sort((a,b) => ordem(a)-ordem(b));
   S.missoes.mes = true; save(); renderAll();
-  $('#saveMonth').textContent = 'Mês registrado';
-  setTimeout(()=>{ $('#saveMonth').textContent='Registrar este mês'; }, 1800);
+
+  /* Já deixa o campo no mês anterior, para quem está lançando o histórico de uma vez. */
+  const ant = mesN===1 ? {ano:ano-1, mesN:12} : {ano, mesN:mesN-1};
+  $('#mesRef').value = campoMes(ant);
+  $('#saveMonth').textContent = atualizou ? 'Mês atualizado' : 'Mês registrado';
+  setTimeout(()=>{ $('#saveMonth').textContent='Registrar mês'; }, 1800);
 };
 $('#editData').onclick = () => {
   const e = S.empresa;
