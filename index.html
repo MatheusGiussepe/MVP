@@ -55,6 +55,14 @@ button{font:inherit; cursor:pointer}
 .opt{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:10px}
 .opt[aria-pressed="true"]{border-color:var(--green); background:var(--green-soft); color:var(--green); font-weight:600}
 .err{color:var(--danger); font-size:13px; margin-top:6px; min-height:0}
+/* Seletor de mês: setas nas pontas, mês no meio */
+.mespicker{display:flex; align-items:stretch; gap:8px}
+.mespicker .seta{flex:none; width:48px; display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1; padding:0}
+.mespicker .seta[disabled]{opacity:.35; border-color:var(--line); color:var(--muted)}
+.mespicker .atual{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; text-align:center}
+.mespicker .atual b{font-weight:600}
+.mespicker .marca{font-size:11px; color:var(--green); font-weight:600}
 /* Raio-X: a cédula */
 .note{border-radius:14px; overflow:hidden; display:flex; height:92px; border:2px solid var(--ink); position:relative}
 .note .part{height:100%; display:flex; align-items:flex-end; padding:8px; font-weight:700; font-family:var(--display); font-size:18px; color:#fff; min-width:0; transition:flex-grow .6s ease}
@@ -194,7 +202,15 @@ nav.tabs svg{width:22px; height:22px}
         <h3>Seu lucro mês a mês</h3>
         <div class="hist" id="rx-hist"></div>
         <p class="hint" id="rx-hist-hint"></p>
-        <div style="margin-top:10px"><label for="mesRef">Mês de referência</label><input type="month" id="mesRef"></div>
+        <div style="margin-top:10px">
+          <span class="sr" id="lbl-mes">Mês de referência</span>
+          <label aria-hidden="true">Mês de referência</label>
+          <div class="mespicker" role="group" aria-labelledby="lbl-mes">
+            <button class="btn small ghost seta" id="mesAnt" type="button" aria-label="Mês anterior">&lsaquo;</button>
+            <div class="atual" aria-live="polite"><b id="mesLabel"></b><span class="marca" id="mesMarca" hidden>já registrado</span></div>
+            <button class="btn small ghost seta" id="mesProx" type="button" aria-label="Mês seguinte">&rsaquo;</button>
+          </div>
+        </div>
         <div class="stack" style="gap:8px; margin-top:8px">
           <div><label for="h-fat">Quanto entrou nesse mês</label><div class="money"><input id="h-fat" inputmode="decimal" placeholder="45.000"></div></div>
           <div><label for="h-folha">Salários e pró-labore</label><div class="money"><input id="h-folha" inputmode="decimal" placeholder="9.000"></div></div>
@@ -563,6 +579,7 @@ function renderHist(c){
     <div class="bar tx" style="height:${Math.max(x.imposto,0)/max*90}px;width:16px" title="Imposto ${pct(x.imposto)}"></div>
     <div class="bar" style="height:${Math.max(x.lucro,0)/max*90}px;width:16px" title="Lucro ${pct(x.lucro)}"></div></div><span>${x.mes}${multiAno ? '/'+String(x.ano).slice(2) : ''}</span></div>`).join('');
   if(h.length >= 3) $('#rx-hist-hint').textContent = 'Amarelo: impostos. Verde: lucro. Em % do faturamento.';
+  if($('#mesLabel')) renderMesSel();
 }
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -573,7 +590,6 @@ function mesFechado(){
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
   return {ano:d.getFullYear(), mesN:d.getMonth()+1};
 }
-const campoMes = ({ano,mesN}) => `${ano}-${String(mesN).padStart(2,'0')}`;
 
 /* Registros antigos só tinham o nome do mês: completa ano e número, e ordena. */
 function normalizarHistorico(){
@@ -600,25 +616,38 @@ function preencherCamposMes(){
   $('#h-custos').value = v(S.empresa.custos);
 }
 
-function iniciarSeletorMes(){
-  const el = $('#mesRef'); if(!el) return;
-  const hoje = new Date();
-  el.max = campoMes({ano:hoje.getFullYear(), mesN:hoje.getMonth()+1});
-  el.min = campoMes({ano:hoje.getFullYear()-5, mesN:1});
-  if(!el.value) el.value = campoMes(mesFechado());
+const MESES_LONGOS = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+let mesSel = mesFechado();
+
+/* Não dá para registrar um mês que ainda não terminou, nem voltar mais de 5 anos. */
+function limitesMes(){
+  const h = new Date();
+  return { max: h.getFullYear()*12 + h.getMonth()+1, min: (h.getFullYear()-5)*12 + 1 };
 }
-iniciarSeletorMes();
-['#mesRef','#h-fat','#h-folha','#h-custos'].forEach(id => $(id).addEventListener('input', () => $('#hist-err').textContent=''));
+function renderMesSel(){
+  const lim = limitesMes(), o = ordem(mesSel);
+  const nome = MESES_LONGOS[mesSel.mesN-1];
+  $('#mesLabel').textContent = `${nome[0].toUpperCase()}${nome.slice(1)} de ${mesSel.ano}`;
+  $('#mesProx').disabled = o >= lim.max;
+  $('#mesAnt').disabled  = o <= lim.min;
+  const jaTem = (S.historico||[]).some(x => x.ano===mesSel.ano && x.mesN===mesSel.mesN);
+  $('#mesMarca').hidden = !jaTem;
+  $('#saveMonth').textContent = jaTem ? 'Atualizar mês' : 'Registrar mês';
+}
+function andarMes(n){
+  const d = new Date(mesSel.ano, mesSel.mesN-1+n, 1);
+  const alvo = {ano:d.getFullYear(), mesN:d.getMonth()+1}, lim = limitesMes();
+  if(ordem(alvo) > lim.max || ordem(alvo) < lim.min) return;
+  mesSel = alvo; $('#hist-err').textContent=''; renderMesSel();
+}
+$('#mesAnt').onclick = () => andarMes(-1);
+$('#mesProx').onclick = () => andarMes(1);
+renderMesSel();
+['#h-fat','#h-folha','#h-custos'].forEach(id => $(id).addEventListener('input', () => $('#hist-err').textContent=''));
 
 $('#saveMonth').onclick = () => {
-  const v = $('#mesRef').value;
-  if(!/^\d{4}-\d{2}$/.test(v)){ $('#hist-err').textContent='Escolha o mês que você quer registrar.'; return; }
-  const ano = Number(v.slice(0,4)), mesN = Number(v.slice(5,7));
-  const hoje = new Date();
-  if(mesN<1 || mesN>12){ $('#hist-err').textContent='Mês inválido.'; return; }
-  if(ano*12+mesN > hoje.getFullYear()*12 + hoje.getMonth()+1){
-    $('#hist-err').textContent='Esse mês ainda não chegou.'; return;
-  }
+  const {ano, mesN} = mesSel;
+  if(ordem(mesSel) > limitesMes().max){ $('#hist-err').textContent='Esse mês ainda não chegou.'; return; }
   const fat = parseMoney($('#h-fat').value), folha = parseMoney($('#h-folha').value)||0, custos = parseMoney($('#h-custos').value)||0;
   if(!(fat>0)){ $('#hist-err').textContent='Informe quanto entrou nesse mês.'; return; }
   if(folha<0 || custos<0){ $('#hist-err').textContent='Use valores positivos.'; return; }
@@ -632,11 +661,10 @@ $('#saveMonth').onclick = () => {
   S.historico.sort((a,b) => ordem(a)-ordem(b));
   S.missoes.mes = true; save(); renderAll();
 
-  /* Já deixa o campo no mês anterior, para quem está lançando o histórico de uma vez. */
-  const ant = mesN===1 ? {ano:ano-1, mesN:12} : {ano, mesN:mesN-1};
-  $('#mesRef').value = campoMes(ant);
+  /* Recua um mês sozinho, para quem está lançando o histórico de uma vez. */
+  andarMes(-1);
   $('#saveMonth').textContent = atualizou ? 'Mês atualizado' : 'Mês registrado';
-  setTimeout(()=>{ $('#saveMonth').textContent='Registrar mês'; }, 1800);
+  setTimeout(renderMesSel, 1800);
 };
 $('#editData').onclick = () => {
   const e = S.empresa;
