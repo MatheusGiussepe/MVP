@@ -114,16 +114,10 @@ nav.tabs svg{width:22px; height:22px}
 @property --p{syntax:'<number>'; inherits:false; initial-value:0}
 .anel-wrap{position:relative; width:96px; height:96px; flex:none}
 .anel{width:100%; height:100%; border-radius:50%;
+  --escala:conic-gradient(hsl(0 85% 46%), hsl(45 96% 50%), hsl(163 74% 33%));
   background:
     conic-gradient(#0000 0 calc(var(--p) * 1%), var(--line) calc(var(--p) * 1%) 100%),
-    conic-gradient(
-      hsl(0 85% 46%)    0%,
-      hsl(8 76% 52%)   25%,
-      hsl(18 66% 62%)  49%,
-      hsl(45 96% 50%)  50%,
-      hsl(48 92% 56%)  79%,
-      hsl(150 40% 60%) 80%,
-      hsl(162 72% 34%) 100%);
+    var(--escala);
   -webkit-mask:radial-gradient(farthest-side, #0000 calc(100% - 11px), #000 calc(100% - 11px));
   mask:radial-gradient(farthest-side, #0000 calc(100% - 11px), #000 calc(100% - 11px));
   transition:--p .7s ease}
@@ -786,21 +780,35 @@ function missionDefs(){
     {id:'mes', t:'Registrar os números do mês', d:'Quem acompanha todo mês percebe os problemas antes.'}
   ];
 }
-/* Cor do nível, na mesma escala do anel: vermelho forte embaixo indo a fraco,
-   amarelo forte a partir de 50, e de 80 a 100 um verde que vai de fraco a forte. */
+/* Escala da saúde tributária, do vermelho ao verde, sem troca em degrau:
+   cada parada se dissolve na seguinte. Vale para o anel e para a cor do nível,
+   então os dois nunca discordam. */
+const ESCALA = [
+  {p:0,   h:0,   s:85, l:46},   // vermelho forte
+  {p:18,  h:4,   s:80, l:50},
+  {p:34,  h:13,  s:73, l:55},   // vermelho já mais fraco
+  {p:44,  h:30,  s:86, l:52},   // derretendo no amarelo
+  {p:52,  h:45,  s:96, l:50},   // amarelo forte
+  {p:68,  h:49,  s:93, l:54},
+  {p:78,  h:72,  s:62, l:46},   // derretendo no verde
+  {p:86,  h:120, s:48, l:44},   // verde fraco
+  {p:100, h:163, s:74, l:33}    // verde forte
+];
+const hsl = c => `hsl(${Math.round(c.h)} ${Math.round(c.s)}% ${Math.round(c.l)}%)`;
+
 function corSaude(score){
   const v = Math.max(0, Math.min(100, Number(score)||0));
-  const faixa = v >= 80 ? {de:80, ate:100, h:[150,162], s:[40,72], l:[60,34]}
-              : v >= 50 ? {de:50, ate:79,  h:[45,48],   s:[96,92], l:[50,56]}
-              :           {de:0,  ate:49,  h:[0,18],    s:[85,66], l:[46,62]};
-  const t = (v - faixa.de) / (faixa.ate - faixa.de);
-  const entre = ([a,b]) => Math.round(a + (b-a)*t);
-  return `hsl(${entre(faixa.h)} ${entre(faixa.s)}% ${entre(faixa.l)}%)`;
+  let i = 0; while(i < ESCALA.length-2 && v > ESCALA[i+1].p) i++;
+  const a = ESCALA[i], b = ESCALA[i+1];
+  const t = (v - a.p) / (b.p - a.p);
+  return hsl({h:a.h+(b.h-a.h)*t, s:a.s+(b.s-a.s)*t, l:a.l+(b.l-a.l)*t});
 }
+const escalaCss = () => `conic-gradient(${ESCALA.map(c => `${hsl(c)} ${c.p}%`).join(', ')})`;
 
 function renderMissoes(){
   const defs = missionDefs(); const done = defs.filter(d=>S.missoes[d.id]).length; const score = done*20;
   $('#missionPill').textContent = `Missões ${done}/5`;
+  $('#ringArc').style.setProperty('--escala', escalaCss());
   $('#ringArc').style.setProperty('--p', score);
   $('#ringArc').setAttribute('aria-label', `Saúde tributária: ${score} de 100`);
   $('#ringTxt').textContent = score;
