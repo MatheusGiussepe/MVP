@@ -59,8 +59,22 @@ button{font:inherit; cursor:pointer}
 .mespicker{display:flex; align-items:stretch; gap:8px}
 .mespicker .seta{flex:none; width:48px; display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1; padding:0}
 .mespicker .seta[disabled]{opacity:.35; border-color:var(--line); color:var(--muted)}
-.mespicker .atual{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-  background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; text-align:center}
+.mespicker .campo{flex:1; position:relative}
+.mespicker .atual{width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; text-align:center;
+  font:inherit; color:var(--ink); cursor:pointer}
+.mespicker .atual:hover{border-color:var(--green)}
+/* Painel de escolha do mês */
+.mespop{position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:30; background:var(--surface);
+  border:1px solid var(--line); border-radius:12px; padding:10px; box-shadow:0 14px 34px rgba(0,0,0,.22)}
+.mespop .topo{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px}
+.mespop .topo b{font-family:var(--display); font-size:16px}
+.mespop .grade{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
+.mespop .grade button{padding:10px 0; font:inherit; font-size:14px; border-radius:8px; border:1.5px solid var(--line);
+  background:var(--surface-2); color:var(--ink); cursor:pointer}
+.mespop .grade button[aria-pressed="true"]{border-color:var(--green); background:var(--green-soft); color:var(--green); font-weight:700}
+.mespop .grade button[disabled]{opacity:.32; cursor:default}
+.mespop .grade .pt{display:block; width:5px; height:5px; border-radius:50%; background:var(--green); margin:3px auto 0}
 .mespicker .atual b{font-weight:600}
 .mespicker .marca{font-size:11px; color:var(--green); font-weight:600}
 /* Raio-X: a cédula */
@@ -207,7 +221,19 @@ nav.tabs svg{width:22px; height:22px}
           <label aria-hidden="true">Mês de referência</label>
           <div class="mespicker" role="group" aria-labelledby="lbl-mes">
             <button class="btn small ghost seta" id="mesAnt" type="button" aria-label="Mês anterior">&lsaquo;</button>
-            <div class="atual" aria-live="polite"><b id="mesLabel"></b><span class="marca" id="mesMarca" hidden>já registrado</span></div>
+            <div class="campo">
+              <button type="button" class="atual" id="mesAbrir" aria-haspopup="dialog" aria-expanded="false">
+                <b id="mesLabel"></b><span class="marca" id="mesMarca" hidden>já registrado</span>
+              </button>
+              <div class="mespop" id="mesPop" hidden role="dialog" aria-label="Escolher mês">
+                <div class="topo">
+                  <button type="button" class="btn small ghost seta" id="anoAnt" aria-label="Ano anterior">&lsaquo;</button>
+                  <b id="anoLabel"></b>
+                  <button type="button" class="btn small ghost seta" id="anoProx" aria-label="Próximo ano">&rsaquo;</button>
+                </div>
+                <div class="grade" id="mesGrade"></div>
+              </div>
+            </div>
             <button class="btn small ghost seta" id="mesProx" type="button" aria-label="Mês seguinte">&rsaquo;</button>
           </div>
         </div>
@@ -639,9 +665,41 @@ function andarMes(n){
   const alvo = {ano:d.getFullYear(), mesN:d.getMonth()+1}, lim = limitesMes();
   if(ordem(alvo) > lim.max || ordem(alvo) < lim.min) return;
   mesSel = alvo; $('#hist-err').textContent=''; renderMesSel();
+  if(!$('#mesPop').hidden){ anoPop = mesSel.ano; renderPop(); }
 }
 $('#mesAnt').onclick = () => andarMes(-1);
 $('#mesProx').onclick = () => andarMes(1);
+
+/* Painel de meses: abre ao tocar no mês, com o ano navegável e um ponto nos já lançados. */
+let anoPop = mesSel.ano;
+const popAberto = () => !$('#mesPop').hidden;
+function renderPop(){
+  const lim = limitesMes();
+  $('#anoLabel').textContent = anoPop;
+  $('#anoAnt').disabled = (anoPop-1)*12 + 12 < lim.min;
+  $('#anoProx').disabled = (anoPop+1)*12 + 1  > lim.max;
+  $('#mesGrade').innerHTML = MESES.map((m,i) => {
+    const o = anoPop*12 + (i+1);
+    const fora = o > lim.max || o < lim.min;
+    const atual = anoPop===mesSel.ano && (i+1)===mesSel.mesN;
+    const lancado = (S.historico||[]).some(x => x.ano===anoPop && x.mesN===i+1);
+    return `<button type="button" data-m="${i+1}" ${fora?'disabled':''} aria-pressed="${atual}"
+      title="${MESES_LONGOS[i]} de ${anoPop}${lancado?' — já registrado':''}">${m}${lancado?'<span class="pt"></span>':''}</button>`;
+  }).join('');
+}
+function abrirPop(){ anoPop = mesSel.ano; renderPop(); $('#mesPop').hidden=false; $('#mesAbrir').setAttribute('aria-expanded','true'); }
+function fecharPop(){ $('#mesPop').hidden=true; $('#mesAbrir').setAttribute('aria-expanded','false'); }
+$('#mesAbrir').onclick = () => popAberto() ? fecharPop() : abrirPop();
+$('#anoAnt').onclick = () => { anoPop--; renderPop(); };
+$('#anoProx').onclick = () => { anoPop++; renderPop(); };
+$('#mesGrade').addEventListener('click', e => {
+  const b = e.target.closest('button[data-m]'); if(!b || b.disabled) return;
+  mesSel = {ano:anoPop, mesN:Number(b.dataset.m)};
+  $('#hist-err').textContent=''; renderMesSel(); fecharPop();
+});
+document.addEventListener('click', e => { if(popAberto() && !e.target.closest('.mespicker .campo')) fecharPop(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape' && popAberto()) fecharPop(); });
+
 renderMesSel();
 ['#h-fat','#h-folha','#h-custos'].forEach(id => $(id).addEventListener('input', () => $('#hist-err').textContent=''));
 
