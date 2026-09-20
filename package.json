@@ -1,0 +1,5 @@
+{
+  "name": "less-tax-mvp",
+  "private": true,
+  "engines": { "node": ">=18" }
+}

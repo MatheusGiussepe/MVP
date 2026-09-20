@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/lessy.js": { "maxDuration": 30 }
+  }
+}

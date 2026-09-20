@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Less Tax — Raio-X tributário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef3f0; --surface:#ffffff; --surface-2:#f6f9f7; --ink:#10231c; --muted:#56665f; --line:#d6e0db;
+  --green:#1f7a5a; --green-soft:#dcefe6; --tax:#c98a0c; --tax-soft:#fbefd2; --cost:#8fa29a; --payroll:#4d6b8a;
+  --danger:#b3261e; --focus:#1f7a5a;
+  --display:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --body:'Figtree', 'Segoe UI', system-ui, sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1714; --surface:#15231e; --surface-2:#1b2c26; --ink:#e7efeb; --muted:#9db0a8; --line:#2a3d36;
+  --green:#4fc497; --green-soft:#173a2e; --tax:#f0b53a; --tax-soft:#3a2e12; --cost:#6f827a; --payroll:#7fa3c8; --danger:#ff8a80; --focus:#4fc497;}}
+:root[data-theme="dark"]{
+  --bg:#0d1714; --surface:#15231e; --surface-2:#1b2c26; --ink:#e7efeb; --muted:#9db0a8; --line:#2a3d36;
+  --green:#4fc497; --green-soft:#173a2e; --tax:#f0b53a; --tax-soft:#3a2e12; --cost:#6f827a; --payroll:#7fa3c8; --danger:#ff8a80; --focus:#4fc497;}
+*{box-sizing:border-box}
+html{height:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0; min-height:100%; background:var(--bg); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.5}
+.app{max-width:460px; margin:0 auto; min-height:100vh; background:var(--surface); display:flex; flex-direction:column; border-left:1px solid var(--line); border-right:1px solid var(--line)}
+header.top{padding:20px 20px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px}
+.logo{display:flex; align-items:center; gap:10px}
+.logo .wm{font-family:var(--display); font-size:24px; font-weight:400; letter-spacing:-1px; color:var(--muted)}
+.logo .wm b{font-weight:700; color:var(--ink)}
+.pill{font-size:13px; font-weight:600; background:var(--green-soft); color:var(--green); border-radius:999px; padding:4px 10px; border:0; cursor:pointer; font-family:var(--body)}
+main{flex:1; padding:4px 20px 110px}
+h1,h2,h3{font-family:var(--display); letter-spacing:-0.3px; margin:0}
+h1{font-size:30px; line-height:1.1; font-weight:700}
+h2{font-size:22px; line-height:1.2; font-weight:600}
+h3{font-size:17px; line-height:1.3; font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.stack{display:flex; flex-direction:column; gap:16px}
+label{font-weight:600; font-size:15px; display:block; margin-bottom:6px}
+.hint{font-size:13px; color:var(--muted); margin-top:4px}
+input,select,textarea{width:100%; font:inherit; color:var(--ink); background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--focus); outline-offset:2px}
+.money{position:relative}
+.money::before{content:"R$"; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-weight:500}
+.money input{padding-left:42px}
+.seg{display:grid; grid-template-columns:repeat(3,1fr); gap:6px}
+.seg button{padding:10px 6px; font-size:14px}
+button{font:inherit; cursor:pointer}
+.btn{border:0; border-radius:12px; padding:14px 18px; font-weight:600; font-size:16px; background:var(--green); color:#fff}
+.btn.ghost{background:transparent; color:var(--green); border:1.5px solid var(--green)}
+.btn.small{padding:9px 14px; font-size:14px; border-radius:10px}
+.opt{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:10px}
+.opt[aria-pressed="true"]{border-color:var(--green); background:var(--green-soft); color:var(--green); font-weight:600}
+.err{color:var(--danger); font-size:13px; margin-top:6px; min-height:0}
+/* Raio-X: a cédula */
+.note{border-radius:14px; overflow:hidden; display:flex; height:92px; border:2px solid var(--ink); position:relative}
+.note .part{height:100%; display:flex; align-items:flex-end; padding:8px; font-weight:700; font-family:var(--display); font-size:18px; color:#fff; min-width:0; transition:flex-grow .6s ease}
+.note .p-tax{background:var(--tax); color:#1b1400}
+.note .p-pay{background:var(--payroll)}
+.note .p-cost{background:var(--cost); color:#0f1a16}
+.note .p-profit{background:var(--green)}
+.note::after{content:"R$ 100"; position:absolute; top:6px; right:10px; font-family:var(--display); font-weight:700; font-size:14px; color:rgba(255,255,255,.85); mix-blend-mode:difference}
+@media (prefers-reduced-motion:reduce){.note .part{transition:none}}
+.legend{display:grid; grid-template-columns:auto 1fr auto; gap:10px 12px; align-items:center; font-size:15px}
+.dot{width:12px; height:12px; border-radius:3px}
+.legend b{font-variant-numeric:tabular-nums}
+.headline{font-family:var(--display); font-size:21px; line-height:1.3; font-weight:600}
+.card{border:1px solid var(--line); border-radius:16px; padding:16px; background:var(--surface-2); display:flex; flex-direction:column; gap:10px}
+.card.tax{border-left:6px solid var(--tax); border-radius:6px 16px 16px 6px}
+.card.good{border-left:6px solid var(--green); border-radius:6px 16px 16px 6px}
+.tag{align-self:flex-start; font-size:12px; font-weight:600; border-radius:6px; padding:2px 8px; background:var(--tax-soft); color:var(--ink)}
+.row{display:flex; gap:8px; flex-wrap:wrap}
+.big{font-family:var(--display); font-weight:700; font-size:28px; font-variant-numeric:tabular-nums}
+/* nav */
+nav.tabs{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:460px; background:var(--surface); border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(4,1fr); padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+nav.tabs button{border:0; background:transparent; color:var(--muted); padding:8px 4px; border-radius:10px; font-weight:600; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:2px}
+nav.tabs button[aria-current="page"]{color:var(--green); background:var(--green-soft)}
+nav.tabs svg{width:22px; height:22px}
+/* missões */
+.ring{display:flex; align-items:center; gap:18px}
+.mission{display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--line)}
+.check{flex:none; width:26px; height:26px; border-radius:50%; border:2px solid var(--line); display:grid; place-items:center; margin-top:2px}
+.mission.done .check{background:var(--green); border-color:var(--green); color:#fff}
+.mission.done h3{text-decoration:line-through; text-decoration-color:var(--muted)}
+/* chat */
+.chat{display:flex; flex-direction:column; gap:10px}
+.botrow{display:flex; gap:8px; align-items:flex-end; align-self:flex-start; max-width:94%}
+.botrow .msg{max-width:none}
+.avatar{flex:none; width:34px; height:34px}
+.chathead{display:flex; align-items:center; gap:14px}
+.chathead .avatar{width:72px; height:72px}
+.msg{max-width:88%; padding:10px 14px; border-radius:16px; white-space:pre-wrap; font-size:15px}
+.msg.me{align-self:flex-end; background:var(--green); color:#fff; border-bottom-right-radius:4px}
+.msg.bot{align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-bottom-left-radius:4px}
+.chips{display:flex; gap:8px; flex-wrap:wrap}
+.chip{border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:7px 12px; font-size:14px}
+.composer{display:flex; gap:8px; position:sticky; bottom:84px; background:var(--surface); padding-top:8px}
+.composer input{flex:1}
+/* modal */
+.scrim{position:fixed; inset:0; background:rgba(8,20,15,.55); display:flex; align-items:flex-end; justify-content:center; z-index:10}
+.sheet{background:var(--surface); width:100%; max-width:460px; border-radius:20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px)); display:flex; flex-direction:column; gap:14px; max-height:90vh; overflow:auto}
+.hist{display:flex; align-items:flex-end; gap:10px; height:120px; padding-top:8px}
+.hist .col{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; color:var(--muted)}
+.hist .bar{width:100%; max-width:44px; border-radius:6px 6px 2px 2px; background:var(--green)}
+.hist .bar.tx{background:var(--tax)}
+.foot{font-size:12px; color:var(--muted); margin-top:28px}
+[hidden]{display:none !important}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo" role="img" aria-label="Less Tax">
+      <span class="avatar" data-lessy style="width:40px;height:40px" aria-hidden="true"></span>
+      <span class="wm">less<b>tax</b></span>
+    </div>
+    <button class="pill" id="missionPill" hidden>Missões 0/5</button>
+  </header>
+
+  <!-- ONBOARDING -->
+  <main id="onboarding">
+    <div class="stack">
+      <h1>Descubra quanto do seu faturamento vira imposto</h1>
+      <p class="muted">Leva 1 minuto. Use números aproximados de um mês comum.</p>
+
+      <div><label for="f-nome">Nome da empresa</label><input id="f-nome" autocomplete="organization" placeholder="Ex.: Mercado da Praça"></div>
+
+      <div>
+        <label id="lbl-ativ">O que sua empresa faz?</label>
+        <div class="seg" role="group" aria-labelledby="lbl-ativ" id="f-ativ" style="grid-template-columns:repeat(2,1fr)">
+          <button type="button" class="opt" data-v="comercio">Vende produtos</button>
+          <button type="button" class="opt" data-v="industria">Fabrica produtos</button>
+          <button type="button" class="opt" data-v="servicos">Serviços gerais</button>
+          <button type="button" class="opt" data-v="profissionais">Serviços técnicos</button>
+          <button type="button" class="opt" data-v="obras" style="grid-column:span 2">Obras, limpeza ou vigilância</button>
+        </div>
+        <p class="hint">Serviços técnicos: tecnologia, consultoria, marketing, saúde, engenharia e parecidos.</p>
+      </div>
+
+      <div><label for="f-fat">Quanto entra por mês</label><div class="money"><input id="f-fat" inputmode="decimal" placeholder="60.000"></div></div>
+      <div><label for="f-folha">Salários e pró-labore por mês</label><div class="money"><input id="f-folha" inputmode="decimal" placeholder="12.000"></div><p class="hint">Inclua o que os sócios retiram como pró-labore.</p></div>
+      <div><label for="f-custos">Outros custos por mês</label><div class="money"><input id="f-custos" inputmode="decimal" placeholder="20.000"></div><p class="hint">Aluguel, fornecedores, mercadorias, contas, sistemas.</p></div>
+
+      <div id="mono-wrap" hidden>
+        <label id="lbl-mono">Quanto das suas vendas é de bebidas, cosméticos, remédios, autopeças ou pneus?</label>
+        <div class="seg" role="group" aria-labelledby="lbl-mono" id="f-mono" style="grid-template-columns:repeat(2,1fr)">
+          <button type="button" class="opt" data-v="0">Quase nada</button>
+          <button type="button" class="opt" data-v="0.2">Um pouco</button>
+          <button type="button" class="opt" data-v="0.5">Cerca de metade</button>
+          <button type="button" class="opt" data-v="0.7">Mais da metade</button>
+        </div>
+      </div>
+
+      <div>
+        <label id="lbl-cli">Para quem você mais vende?</label>
+        <div class="seg" role="group" aria-labelledby="lbl-cli" id="f-cli">
+          <button type="button" class="opt" data-v="pf">Pessoas</button>
+          <button type="button" class="opt" data-v="pj">Empresas</button>
+          <button type="button" class="opt" data-v="ambos">Os dois</button>
+        </div>
+      </div>
+
+      <p class="err" id="f-err" role="alert"></p>
+      <button class="btn" id="go">Ver meu Raio-X</button>
+      <button class="btn ghost" id="demo">Usar empresa de exemplo</button>
+      <p class="foot">Protótipo. As contas usam as tabelas do Simples Nacional e são estimativas para entender seus números, não substituem a análise de um contador.</p>
+    </div>
+  </main>
+
+  <!-- RAIO-X -->
+  <main id="v-raiox" hidden>
+    <div class="stack">
+      <div>
+        <p class="muted" id="rx-regime"></p>
+        <h1 id="rx-nome"></h1>
+      </div>
+
+      <div class="stack" style="gap:12px">
+        <h2>De cada R$ 100 que entram</h2>
+        <div class="note" id="rx-note" role="img"></div>
+        <div class="legend" id="rx-legend"></div>
+      </div>
+
+      <p class="headline" id="rx-headline"></p>
+
+      <h2 style="margin-top:8px">O que olhar agora</h2>
+      <div class="stack" id="rx-cards"></div>
+
+      <div class="card" id="rx-hist-card">
+        <h3>Seu lucro mês a mês</h3>
+        <div class="hist" id="rx-hist"></div>
+        <p class="hint" id="rx-hist-hint"></p>
+        <div class="row">
+          <button class="btn small" id="saveMonth">Registrar este mês</button>
+          <button class="btn small ghost" id="editData">Atualizar números</button>
+        </div>
+      </div>
+
+      <button class="btn" id="goFounder">Quero ser empresa fundadora</button>
+      <button class="btn ghost" id="openExpert">Falar com um especialista</button>
+      <button class="btn ghost" id="reset" style="border-color:var(--line); color:var(--muted)">Recomeçar simulação</button>
+      <p class="foot">Estimativas educativas com base nas tabelas do Simples Nacional (LC 123/2006). Decisões sobre regime devem ser confirmadas com um contador ou especialista.</p>
+    </div>
+  </main>
+
+  <!-- MISSÕES -->
+  <main id="v-missoes" hidden>
+    <div class="stack">
+      <div class="ring">
+        <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+          <circle cx="48" cy="48" r="40" fill="none" stroke="var(--line)" stroke-width="10"/>
+          <circle id="ringArc" cx="48" cy="48" r="40" fill="none" stroke="var(--green)" stroke-width="10" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3" transform="rotate(-90 48 48)"/>
+          <text id="ringTxt" x="48" y="55" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-weight="700" font-size="22" fill="var(--ink)">0</text>
+        </svg>
+        <div>
+          <p class="muted">Saúde tributária</p>
+          <h2 id="lvl">Começando</h2>
+          <p class="hint" id="lvlHint"></p>
+        </div>
+      </div>
+      <div id="missionList"></div>
+    </div>
+  </main>
+
+  <!-- PERGUNTAR -->
+  <main id="v-chat" hidden>
+    <div class="stack">
+      <div class="chathead">
+        <span class="avatar" data-lessy></span>
+        <div>
+          <h1>Pergunte ao Lessy</h1>
+          <p class="muted">Tire dúvidas sobre os impostos da sua empresa, sem juridiquês.</p>
+        </div>
+      </div>
+      <div class="chips" id="chips">
+        <button class="chip">Por que eu pago esse imposto?</button>
+        <button class="chip">O que é o Fator R?</button>
+        <button class="chip">O que muda com a reforma pra mim?</button>
+        <button class="chip">Como aumentar meu lucro?</button>
+      </div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <p class="err" id="chatErr" role="alert"></p>
+      <div class="composer">
+        <label for="q" class="sr">Sua pergunta</label>
+        <input id="q" placeholder="Escreva sua dúvida" autocomplete="off">
+        <button class="btn small" id="send">Enviar</button>
+        <button class="btn small ghost" id="stop" hidden>Parar</button>
+      </div>
+      <p class="hint" id="chatOff" hidden>Modo demonstração: o Lessy responde às perguntas rápidas acima.</p>
+      <p class="hint" id="restantes" role="status"></p>
+    </div>
+  </main>
+
+  <!-- GARANTIR -->
+  <main id="v-garantir" hidden>
+    <div class="stack">
+      <div class="chathead">
+        <span class="avatar" data-lessy></span>
+        <div>
+          <h1 id="gf-title">Seja uma empresa fundadora</h1>
+          <p class="muted" id="gf-intro"></p>
+        </div>
+      </div>
+      <ul id="gf-list" style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:8px"></ul>
+      <div class="card" id="gf-pix">
+        <p class="muted">Pix simbólico</p>
+        <p class="big" id="gf-valor"></p>
+
+        <h3 style="margin-top:4px">Pagando por este celular</h3>
+        <p class="hint">Copie o código, abra o app do seu banco e escolha Pix copia e cola. O valor já vem preenchido.</p>
+        <textarea id="pixcode" rows="3" readonly aria-label="Código Pix copia e cola" style="font-size:12px; resize:none"></textarea>
+        <button class="btn" id="copyPix">Copiar código Pix</button>
+        <p class="hint" id="copyMsg" role="status"></p>
+
+        <p class="hint">Ou pague pela chave Pix, escolhendo o tipo Celular:</p>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px">
+          <span class="big" style="font-size:22px" id="gf-chave"></span>
+          <button class="btn small ghost" id="copyKey">Copiar chave</button>
+        </div>
+        <p class="hint" id="keyMsg" role="status"></p>
+
+        <h3 style="margin-top:8px">Pagando por outro celular</h3>
+        <p class="hint">Aponte a câmera do app do banco para o código.</p>
+        <div id="qr" style="align-self:center; background:#fff; padding:12px; border-radius:12px"></div>
+        <a class="btn ghost" id="zap" target="_blank" rel="noopener" style="text-align:center; text-decoration:none">Enviar comprovante pelo WhatsApp</a>
+        <p class="hint">Recebedor: <span id="gf-rec"></span></p>
+      </div>
+      <p class="hint" id="gf-off" hidden>O Pix ainda não foi configurado nesta versão.</p>
+      <p class="foot">O valor é simbólico: ele mostra que a solução faz sentido para você e ajuda a Less Tax a nascer.</p>
+    </div>
+  </main>
+
+  <nav class="tabs" id="tabs" hidden aria-label="Seções">
+    <button data-v="v-raiox" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 6v12M13 6v12"/></svg>Raio-X</button>
+    <button data-v="v-missoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>Missões</button>
+    <button data-v="v-chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>Perguntar</button>
+    <button data-v="v-garantir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.4 6.7 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg>Garantir</button>
+  </nav>
+</div>
+
+<!-- ESPECIALISTA -->
+<div class="scrim" id="expert" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ex-title">
+    <h2 id="ex-title">Falar com um especialista</h2>
+    <p class="muted" id="ex-intro">Um especialista da Less Tax revisa seus números junto com o seu contador e mostra se existe um caminho para pagar menos, dentro da lei.</p>
+    <div id="ex-form" class="stack">
+      <div><label for="ex-nome">Seu nome</label><input id="ex-nome" autocomplete="name"></div>
+      <div><label for="ex-zap">WhatsApp</label><input id="ex-zap" inputmode="tel" autocomplete="tel" placeholder="(47) 99999-9999"></div>
+      <p class="err" id="ex-err" role="alert"></p>
+      <button class="btn" id="ex-send">Pedir contato</button>
+    </div>
+    <div id="ex-ok" hidden class="stack">
+      <p class="headline">Pedido registrado.</p>
+      <p class="muted">Neste protótipo nenhum dado é enviado. Na versão real, o especialista responderia pelo WhatsApp em até 1 dia útil.</p>
+    </div>
+    <button class="btn ghost" id="ex-close">Fechar</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const pct = n => (n*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+/* ====== CONFIGURAÇÃO DA PRÉ-VENDA: preencha antes de apresentar ====== */
+const CONFIG = {
+  pix: {
+    chave: '+5547999306802',                          // celular no formato +55 DDD número
+    chaveTexto: '(47) 99930-6802',                   // como a chave aparece para quem vai copiar
+    chaveCopia: '47999306802',                       // o que o botão copia (DDD + número)
+    nome: 'Matheus Giussepe Possamai de Carlucci',   // nome do recebedor
+    cidade: 'Joinville',                             // cidade do recebedor
+    valor: 10         // valor simbólico em reais
+  },
+  whatsapp: '5547999306802',  // número da equipe com DDI e DDD
+  intro: 'As primeiras empresas que apoiarem a Less Tax recebem:',
+  oferta: [
+    'Uma análise completa dos seus impostos com um especialista, no lançamento',
+    'Os 3 primeiros meses do app sem custo',
+    'Acesso antecipado ao Lessy com todas as funções'
+  ]
+};
+/* ====================================================================== */
+const KEY = 'lesstax:v1';
+const DEADLINE = new Date('2026-09-30T23:59:59-03:00');
+
+/* Tabelas do Simples Nacional (LC 123/2006): [limite RBT12, alíquota nominal, parcela a deduzir] */
+const TAB = {
+  I:[[180000,.04,0],[360000,.073,5940],[720000,.095,13860],[1800000,.107,22500],[3600000,.143,87300],[4800000,.19,378000]],
+  II:[[180000,.045,0],[360000,.078,5940],[720000,.10,13860],[1800000,.112,22500],[3600000,.147,85500],[4800000,.30,720000]],
+  III:[[180000,.06,0],[360000,.112,9360],[720000,.135,17640],[1800000,.16,35640],[3600000,.21,125640],[4800000,.33,648000]],
+  IV:[[180000,.045,0],[360000,.09,8100],[720000,.102,12420],[1800000,.14,39780],[3600000,.22,183780],[4800000,.33,828000]],
+  V:[[180000,.155,0],[360000,.18,4500],[720000,.195,9900],[1800000,.205,17100],[3600000,.23,62100],[4800000,.305,540000]]
+};
+const ANEXO_TXT = {I:'Anexo I, comércio', II:'Anexo II, indústria', III:'Anexo III, serviços', IV:'Anexo IV, obras e serviços', V:'Anexo V, serviços'};
+function efetiva(rbt, anexo){
+  const f = TAB[anexo].find(r => rbt <= r[0]) || TAB[anexo][5];
+  return Math.max(0,(rbt*f[1]-f[2])/rbt);
+}
+
+let S = load() || {empresa:null, missoes:{}, historico:[], chat:[]};
+function load(){ try{ const v = localStorage.getItem(KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function parseMoney(v){ if(!v) return NaN; v = String(v).replace(/[^\d,.-]/g,''); v = v.replace(/\./g,'').replace(',','.'); return parseFloat(v); }
+
+/* ---------- onboarding ---------- */
+function bindSeg(id){
+  const g = $(id);
+  g.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x===b ? 'true':'false'));
+    g.dataset.value = b.dataset.v; $('#f-err').textContent='';
+  });
+}
+bindSeg('#f-ativ'); bindSeg('#f-cli'); bindSeg('#f-mono');
+$('#f-ativ').addEventListener('click', () => { $('#mono-wrap').hidden = $('#f-ativ').dataset.value!=='comercio'; });
+function setSeg(id, v){ const g=$(id); g.dataset.value=v||''; g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x.dataset.v===v?'true':'false')); }
+['#f-nome','#f-fat','#f-folha','#f-custos'].forEach(id => $(id).addEventListener('input', () => $('#f-err').textContent=''));
+
+/* Máscara de valores: 70000 vira 70.000; aceita centavos depois da vírgula (70.000,50) */
+function formatarValor(txt){
+  txt = txt.replace(/[^\d,]/g,'');
+  const i = txt.indexOf(',');
+  let inteiro = (i>=0 ? txt.slice(0,i) : txt).replace(/^0+(?=\d)/,'');
+  let dec = i>=0 ? ',' + txt.slice(i+1).replace(/,/g,'').slice(0,2) : '';
+  inteiro = inteiro.slice(0,9).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  if(i>=0 && !inteiro) inteiro = '0';
+  return inteiro + dec;
+}
+['#f-fat','#f-folha','#f-custos'].forEach(id => {
+  const el = $(id);
+  el.addEventListener('input', () => {
+    const pos = el.selectionStart ?? el.value.length;
+    const antes = el.value.slice(0,pos).replace(/[^\d,]/g,'').length;   /* dígitos antes do cursor */
+    el.value = formatarValor(el.value);
+    let n = 0, p = 0;
+    while(p < el.value.length && n < antes){ if(/[\d,]/.test(el.value[p])) n++; p++; }
+    try{ el.setSelectionRange(p,p); }catch(e){}
+  });
+});
+
+$('#go').onclick = () => {
+  const e = {
+    nome: $('#f-nome').value.trim(), ativ: $('#f-ativ').dataset.value, cli: $('#f-cli').dataset.value,
+    fat: parseMoney($('#f-fat').value), folha: parseMoney($('#f-folha').value)||0, custos: parseMoney($('#f-custos').value)||0,
+    mono: parseFloat($('#f-mono').dataset.value||'')
+  };
+  if(e.ativ!=='comercio') e.mono = 0;
+  if(e.ativ==='comercio' && e.mono===0) S.missoes.mono = true;
+  const err = !e.nome ? 'Informe o nome da empresa.' : !e.ativ ? 'Escolha o que sua empresa faz.' :
+    !(e.fat>0) ? 'Informe quanto entra por mês.' : (e.ativ==='comercio' && isNaN(e.mono)) ? 'Diga quanto das vendas é desses produtos.' : e.folha<0||e.custos<0 ? 'Use valores positivos.' : !e.cli ? 'Escolha para quem você mais vende.' : '';
+  if(err){ $('#f-err').textContent = err; return; }
+  S.empresa = e; S.missoes.raiox = true; save(); startApp();
+};
+$('#demo').onclick = () => {
+  S = {empresa:{nome:'Studio Código', ativ:'profissionais', cli:'pj', fat:60000, folha:12000, custos:20000, mono:0},
+       missoes:{raiox:true}, chat:[],
+       historico:[{mes:'Jun',lucro:.24,imposto:.181},{mes:'Jul',lucro:.27,imposto:.181},{mes:'Ago',lucro:.26,imposto:.181}]};
+  save(); startApp();
+};
+
+/* ---------- cálculo ---------- */
+function calc(e){
+  const rbt = e.fat*12, fatorR = e.folha/e.fat;
+  let anexo = {comercio:'I', industria:'II', servicos:'III', obras:'IV'}[e.ativ] || (fatorR>=0.28 ? 'III':'V');
+  const acima = rbt > 4800000;
+  const aliq = acima ? null : efetiva(rbt, anexo);
+  const das = acima ? 0 : e.fat*aliq;
+  const cpp = (!acima && anexo==='IV') ? e.folha*0.20 : 0;   /* Anexo IV: INSS patronal (20%) pago fora do DAS */
+  const imposto = das + cpp;
+  /* Monofásico: no Anexo I (faixas 1 a 5), PIS + Cofins são 15,5% do DAS; na receita segregada eles não são cobrados */
+  const monoMes = (!acima && e.ativ==='comercio' && e.mono>0 && rbt<=3600000) ? das*e.mono*0.155 : 0;
+  const lucro = e.fat - imposto - e.folha - e.custos;
+  return {rbt, fatorR, anexo, aliq, das, cpp, imposto, monoMes, lucro, acima};
+}
+
+/* ---------- app ---------- */
+function startApp(){
+  $('#onboarding').hidden = true; $('#tabs').hidden = false; $('#missionPill').hidden = false;
+  show('v-raiox'); renderAll();
+}
+function show(id){
+  ['v-raiox','v-missoes','v-chat','v-garantir'].forEach(v => $('#'+v).hidden = v!==id);
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v===id?'page':'false'));
+  window.scrollTo(0,0);
+}
+$('#tabs').addEventListener('click', e => { const b=e.target.closest('button'); if(b) show(b.dataset.v); });
+$('#missionPill').onclick = () => show('v-missoes');
+
+function renderAll(){ renderRaiox(); renderMissoes(); renderChat(); renderGarantir(); if(typeof renderRestantes==='function') renderRestantes(); }
+
+function renderRaiox(){
+  const e = S.empresa, c = calc(e);
+  $('#rx-nome').textContent = e.nome;
+  $('#rx-regime').textContent = c.acima ? 'Faturamento acima do limite do Simples' : 'Simples Nacional, ' + ANEXO_TXT[c.anexo];
+  const parts = [
+    {k:'Impostos', v:c.imposto, cls:'p-tax', col:'var(--tax)'},
+    {k:'Salários e pró-labore', v:e.folha, cls:'p-pay', col:'var(--payroll)'},
+    {k:'Outros custos', v:e.custos, cls:'p-cost', col:'var(--cost)'},
+    {k: c.lucro>=0 ? 'Lucro' : 'Prejuízo', v:c.lucro, cls:'p-profit', col: c.lucro>=0 ? 'var(--green)':'var(--danger)'}
+  ];
+  const base = c.lucro>=0 ? e.fat : e.fat - c.lucro;
+  const note = $('#rx-note'); note.innerHTML='';
+  parts.forEach(p => {
+    if(p.cls==='p-profit' && p.v<0) return;
+    const share = p.v/base; const d = document.createElement('div');
+    d.className='part '+p.cls; d.style.flexGrow = Math.max(share,0.0001); d.style.flexBasis='0';
+    d.textContent = share>=0.09 ? Math.round(p.v/e.fat*100) : '';
+    note.appendChild(d);
+  });
+  note.setAttribute('aria-label', parts.map(p => `${p.k}: ${Math.round(p.v/e.fat*100)} reais`).join(', '));
+  $('#rx-legend').innerHTML = parts.map(p => `<span class="dot" style="background:${p.col}"></span><span>${p.k}</span><b>${fmt(p.v/e.fat*100)}</b>`).join('');
+
+  $('#rx-headline').textContent = c.acima
+    ? 'Sua empresa fatura mais do que o limite do Simples Nacional. Aqui a conta depende de Lucro Presumido ou Real, e vale a análise de um especialista.'
+    : c.lucro>=0
+      ? `Por mês, cerca de ${fmt(c.imposto)} vão para impostos (${pct(c.imposto/e.fat)} do que entra). Sobram ${fmt(c.lucro)} de lucro.`
+      : `Por mês, cerca de ${fmt(c.imposto)} vão para impostos, e as saídas passam o faturamento em ${fmt(-c.lucro)}.`;
+
+  const cards = []; const days = Math.ceil((DEADLINE - new Date())/86400000);
+  if(!c.acima && e.ativ==='profissionais'){
+    if(c.anexo==='V'){
+      const need = 0.28*e.fat, aumento = need - e.folha;
+      const impIII = e.fat*efetiva(c.rbt,'III'), inss = aumento*0.11;
+      const econ = c.imposto - impIII - inss;
+      cards.push(`<div class="card tax"><span class="tag">Oportunidade</span><h3>Você pode estar no anexo mais caro</h3>
+        <p>Hoje seus salários e pró-labore são ${pct(c.fatorR)} do faturamento. Chegando a 28% (o chamado Fator R), a empresa passa do Anexo V para o Anexo III.</p>
+        <p class="muted">Aumentando o pró-labore em ${fmt(aumento)}, a economia estimada é de</p>
+        <p class="big">${fmt(Math.max(econ,0))} por mês</p>
+        <p class="hint">Já descontamos 11% de INSS sobre o aumento. Pode haver Imposto de Renda sobre o pró-labore: confirme com o contador.</p>
+        <div class="row"><button class="btn small" data-m="anexo">Entendi</button><button class="btn small ghost" data-ask="Explique o Fator R com os números da minha empresa">Perguntar ao Lessy</button></div></div>`);
+    } else {
+      cards.push(`<div class="card good"><h3>O Fator R está a seu favor</h3><p>Seus salários e pró-labore são ${pct(c.fatorR)} do faturamento, acima dos 28%. Por isso a empresa fica no Anexo III, que é mais barato. Se a folha cair abaixo disso, o imposto sobe.</p>
+        <div class="row"><button class="btn small" data-m="anexo">Entendi</button></div></div>`);
+    }
+  }
+  if(!c.acima){
+    const aberto = days>0;
+    const rec = e.cli==='pj' ? 'Como você vende principalmente para empresas, o Simples híbrido pode deixar seu preço mais competitivo, porque seus clientes aproveitam mais crédito de imposto.'
+      : e.cli==='pf' ? 'Como você vende principalmente para pessoas, manter tudo dentro do DAS costuma ser o caminho mais simples.'
+      : 'Como você vende para pessoas e empresas, a resposta depende de quanto cada um pesa no seu faturamento.';
+    cards.push(`<div class="card tax"><span class="tag">${aberto ? (days===1?'Falta 1 dia':`Faltam ${days} dias`) : 'Próxima janela: março de 2027'}</span>
+      <h3>Reforma tributária: DAS ou Simples híbrido?</h3>
+      <p>${aberto ? 'Até 30 de setembro de 2026' : 'Na próxima janela'}, cada empresa do Simples escolhe como vai pagar os novos impostos (IBS e CBS) em 2027. Quem não escolher continua pagando tudo no DAS.</p>
+      <p>${rec}</p>
+      <div class="row"><button class="btn small" data-expert>Pedir ajuda para decidir</button><button class="btn small ghost" data-m="reforma">Já decidi</button></div></div>`);
+  }
+  if(e.ativ==='comercio' && c.monoMes>0){
+    cards.push(`<div class="card tax"><span class="tag">Oportunidade</span><h3>Imposto que talvez você pague duas vezes</h3>
+      <p>Em bebidas, cosméticos, remédios, autopeças e pneus, parte do imposto (PIS e Cofins) já foi paga pela fábrica. Se essas vendas não são separadas na hora de calcular o DAS, a loja paga de novo.</p>
+      <p class="muted">Pelo que você informou, isso pode chegar a</p>
+      <p class="big">${fmt(c.monoMes)} por mês</p>
+      <p>Se a separação nunca foi feita, os últimos 5 anos podem somar até <b>${fmt(c.monoMes*60)}</b> para recuperar.</p>
+      <p class="hint">Estimativa. Se o seu contador já separa essas vendas, esse valor não existe. Só uma revisão das notas confirma.</p>
+      <div class="row"><button class="btn small" data-expert data-m="mono">Quero verificar</button><button class="btn small ghost" data-m="mono">Meu contador já faz isso</button></div></div>`);
+  }
+  if(c.anexo==='IV' && !c.acima){
+    cards.push(`<div class="card"><h3>Um imposto fora da guia</h3><p>Em obras, limpeza e vigilância, o INSS da empresa (cerca de 20% sobre salários e pró-labore) não vem no DAS: é pago à parte. Já incluímos na conta: ${fmt(c.cpp)} por mês, além de ${fmt(c.das)} do DAS.</p></div>`);
+  }
+  if(!c.acima && c.rbt > 3600000){
+    cards.push(`<div class="card tax"><h3>Perto do limite</h3><p>Seu faturamento anual estimado é de ${fmt(c.rbt)}. Acima de R$ 3,6 milhões, parte dos impostos passa a ser cobrada fora do DAS. Acima de R$ 4,8 milhões, a empresa sai do Simples.</p></div>`);
+  }
+  $('#rx-cards').innerHTML = cards.join('');
+  renderHist(c);
+}
+
+function renderHist(c){
+  const e = S.empresa;
+  const h = S.historico.slice(-5);
+  const box = $('#rx-hist');
+  if(!h.length){ box.innerHTML=''; $('#rx-hist-hint').textContent = 'Registre seus números todo mês para ver se o lucro está subindo ou caindo.'; return; }
+  const max = Math.max(...h.map(x=>Math.max(x.lucro,x.imposto)), .3);
+  box.innerHTML = h.map(x => `<div class="col"><div style="display:flex;gap:3px;align-items:flex-end;height:90px;width:100%;justify-content:center">
+    <div class="bar tx" style="height:${Math.max(x.imposto,0)/max*90}px;width:16px" title="Imposto ${pct(x.imposto)}"></div>
+    <div class="bar" style="height:${Math.max(x.lucro,0)/max*90}px;width:16px" title="Lucro ${pct(x.lucro)}"></div></div><span>${x.mes}</span></div>`).join('');
+  $('#rx-hist-hint').textContent = 'Amarelo: impostos. Verde: lucro. Em % do faturamento.';
+}
+
+$('#saveMonth').onclick = () => {
+  const c = calc(S.empresa); const m = new Date().toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+  const label = m.charAt(0).toUpperCase()+m.slice(1);
+  const last = S.historico[S.historico.length-1];
+  const entry = {mes:label, lucro:c.lucro/S.empresa.fat, imposto:c.acima?0:c.aliq};
+  if(last && last.mes===label) S.historico[S.historico.length-1]=entry; else S.historico.push(entry);
+  S.missoes.mes = true; save(); renderAll();
+  $('#saveMonth').textContent = 'Mês registrado';
+  setTimeout(()=>{ $('#saveMonth').textContent='Registrar este mês'; }, 1800);
+};
+$('#editData').onclick = () => {
+  const e = S.empresa;
+  $('#f-nome').value=e.nome; const fv=v=>v.toLocaleString('pt-BR',{maximumFractionDigits:2}); $('#f-fat').value=fv(e.fat); $('#f-folha').value=fv(e.folha); $('#f-custos').value=fv(e.custos);
+  setSeg('#f-ativ',e.ativ); setSeg('#f-cli',e.cli); setSeg('#f-mono', e.ativ==='comercio' ? String(e.mono) : '');
+  ['v-raiox','v-missoes','v-chat','v-garantir'].forEach(v=>$('#'+v).hidden=true); $('#tabs').hidden=true; $('#onboarding').hidden=false; $('#mono-wrap').hidden = e.ativ!=='comercio'; window.scrollTo(0,0);
+};
+
+document.addEventListener('click', ev => {
+  const m = ev.target.closest('[data-m]');
+  if(m){ S.missoes[m.dataset.m]=true; if(m.dataset.mono) S.mono=m.dataset.mono; save(); renderAll(); }
+  if(ev.target.closest('[data-expert]')) openExpert();
+  const a = ev.target.closest('[data-ask]');
+  if(a){ show('v-chat'); ask(a.dataset.ask); }
+});
+
+/* ---------- missões ---------- */
+function missionDefs(){
+  const e=S.empresa;
+  const second = e.ativ==='profissionais' ? {id:'anexo', t:'Entender seu Fator R', d:'Ele decide se você paga o anexo mais caro ou o mais barato.'}
+    : e.ativ==='comercio' ? {id:'mono', t:'Conferir produtos com imposto já pago', d:'Cosméticos, remédios, bebidas e autopeças podem ter imposto pago em dobro.'}
+    : {id:'anexo', t:'Conferir se o anexo está certo', d:'Um anexo errado muda o imposto de todo mês.', btn:'Conferi'};
+  return [
+    {id:'raiox', t:'Descobrir quanto vira imposto', d:'Você já sabe quanto de cada R$ 100 vai para impostos.'},
+    second,
+    {id:'reforma', t:'Decidir: DAS ou Simples híbrido', d:'Escolha que muda seus impostos em 2027.'},
+    {id:'especialista', t:'Revisar o regime com um especialista', d:'Uma conversa para ver se existe um caminho mais barato.'},
+    {id:'mes', t:'Registrar os números do mês', d:'Quem acompanha todo mês percebe os problemas antes.'}
+  ];
+}
+function renderMissoes(){
+  const defs = missionDefs(); const done = defs.filter(d=>S.missoes[d.id]).length; const score = done*20;
+  $('#missionPill').textContent = `Missões ${done}/5`;
+  $('#ringArc').setAttribute('stroke-dashoffset', 251.3*(1-score/100)); $('#ringTxt').textContent = score;
+  $('#lvl').textContent = score>=80 ? 'No controle' : score>=40 ? 'Atento' : 'Começando';
+  $('#lvlHint').textContent = done===5 ? 'Todas as missões feitas. Volte no próximo mês.' : `Faltam ${5-done} ${5-done===1?'missão':'missões'} para ficar no controle.`;
+  $('#missionList').innerHTML = defs.map(d => {
+    const ok = !!S.missoes[d.id];
+    const act = ok ? '' : d.id==='especialista' ? `<button class="btn small" data-expert style="margin-top:8px">Pedir contato</button>`
+      : d.id==='mes' ? `<button class="btn small" onclick="show('v-raiox')" style="margin-top:8px">Ir para o Raio-X</button>`
+      : d.btn ? `<button class="btn small" data-m="${d.id}" style="margin-top:8px">${d.btn}</button>`
+      : d.id!=='raiox' ? `<button class="btn small ghost" onclick="show('v-raiox')" style="margin-top:8px">Ver no Raio-X</button>` : '';
+    return `<div class="mission ${ok?'done':''}"><span class="check" aria-hidden="true">${ok?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>':''}</span>
+      <div><h3>${d.t}</h3><p class="hint">${d.d}</p>${act}<span class="sr">${ok?'Concluída':'Pendente'}</span></div></div>`;
+  }).join('');
+}
+
+/* ---------- pré-venda com Pix ---------- */
+function tlv(id, v){ return id + String(v.length).padStart(2,'0') + v; }
+function crc16(str){
+  let c = 0xFFFF;
+  for(let i=0;i<str.length;i++){ c ^= str.charCodeAt(i) << 8; for(let j=0;j<8;j++){ c = (c & 0x8000) ? ((c << 1) ^ 0x1021) : (c << 1); c &= 0xFFFF; } }
+  return c.toString(16).toUpperCase().padStart(4,'0');
+}
+function limpa(t){ return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase().trim(); }
+function pixCode({chave, nome, cidade, valor}){
+  const conta = tlv('00','br.gov.bcb.pix') + tlv('01', chave.trim());
+  let p = tlv('00','01') + tlv('26',conta) + tlv('52','0000') + tlv('53','986')
+    + (valor ? tlv('54', Number(valor).toFixed(2)) : '') + tlv('58','BR')
+    + tlv('59', limpa(nome).slice(0,25)) + tlv('60', limpa(cidade).slice(0,15))
+    + tlv('62', tlv('05','LESSTAX')) + '6304';
+  return p + crc16(p);
+}
+let qrDone = '';
+function renderGarantir(){
+  const cfg = CONFIG.pix, ok = cfg.chave && cfg.nome && cfg.cidade;
+  $('#gf-intro').textContent = CONFIG.intro;
+  $('#gf-list').innerHTML = CONFIG.oferta.map(t => `<li>${t}</li>`).join('');
+  $('#gf-pix').hidden = !ok; $('#gf-off').hidden = !!ok;
+  if(!ok) return;
+  $('#gf-valor').textContent = Number(cfg.valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  $('#gf-rec').textContent = cfg.nome;
+  $('#gf-chave').textContent = cfg.chaveTexto || cfg.chave;
+  const code = pixCode(cfg); $('#pixcode').value = code;
+  if(qrDone!==code && window.QRCode){ $('#qr').innerHTML=''; new QRCode($('#qr'), {text:code, width:200, height:200, correctLevel:QRCode.CorrectLevel.M}); qrDone=code; }
+  const zap = CONFIG.whatsapp.replace(/\D/g,'');
+  $('#zap').hidden = !zap;
+  if(zap){
+    const e = S.empresa || {};
+    const msg = `Olá! Quero ser empresa fundadora da Less Tax.\nEmpresa: ${e.nome||''}\nFiz o Pix de ${$('#gf-valor').textContent}. Segue o comprovante.`;
+    $('#zap').href = `https://wa.me/${zap}?text=${encodeURIComponent(msg)}`;
+  }
+}
+$('#goFounder').onclick = () => show('v-garantir');
+$('#copyPix').onclick = async () => {
+  const t = $('#pixcode').value;
+  try{ await navigator.clipboard.writeText(t); $('#copyMsg').textContent='Código copiado. Cole no app do seu banco, na opção Pix copia e cola.'; }
+  catch(e){ $('#pixcode').select(); $('#copyMsg').textContent='Selecionamos o código: copie e cole no app do seu banco.'; }
+};
+
+$('#copyKey').onclick = async () => {
+  const k = CONFIG.pix.chaveCopia || CONFIG.pix.chave;
+  try{ await navigator.clipboard.writeText(k); $('#keyMsg').textContent = 'Chave copiada. No banco, escolha Pix, tipo Celular, e cole.'; }
+  catch(e){ $('#keyMsg').textContent = 'Anote a chave: ' + k; }
+};
+
+/* ---------- especialista ---------- */
+function openExpert(){ $('#expert').hidden=false; $('#ex-form').hidden=false; $('#ex-ok').hidden=true; $('#ex-err').textContent=''; setTimeout(()=>$('#ex-nome').focus(),50); }
+$('#openExpert').onclick = openExpert;
+$('#ex-close').onclick = () => $('#expert').hidden=true;
+$('#expert').addEventListener('click', e => { if(e.target.id==='expert') $('#expert').hidden=true; });
+document.addEventListener('keydown', e => { if(e.key==='Escape') $('#expert').hidden=true; });
+['#ex-nome','#ex-zap'].forEach(id=>$(id).addEventListener('input',()=>$('#ex-err').textContent=''));
+$('#ex-send').onclick = () => {
+  if(!$('#ex-nome').value.trim()){ $('#ex-err').textContent='Informe seu nome.'; return; }
+  if($('#ex-zap').value.replace(/\D/g,'').length<10){ $('#ex-err').textContent='Informe um WhatsApp com DDD.'; return; }
+  $('#ex-form').hidden=true; $('#ex-ok').hidden=false; S.missoes.especialista=true; save(); renderAll();
+};
+
+/* ---------- agente IA ---------- */
+const LESSY = `<img src="data:image/png;base64,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" alt="Lessy, o elefante branco" style="width:100%;height:100%;display:block;object-fit:contain">`;
+document.querySelectorAll('[data-lessy]').forEach(el => el.innerHTML = LESSY);
+function botBubble(text){
+  const row=document.createElement('div'); row.className='botrow';
+  const av=document.createElement('span'); av.className='avatar'; av.innerHTML=LESSY; av.setAttribute('aria-hidden','true');
+  const b=document.createElement('div'); b.className='msg bot'; b.textContent=text;
+  row.append(av,b); return {row,b};
+}
+let sample = null, ctl = null, busy = false;
+const LIMITE_SESSAO = 3;          // precisa ser igual ao LESSY_MAX_SESSAO da Vercel
+let apiOff = !/^https?:$/.test(location.protocol);   // aberto como arquivo local: sem API
+function sid(){
+  if(!S.sid){ S.sid = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now().toString(36)); save(); }
+  return S.sid;
+}
+function renderRestantes(){
+  const el = $('#restantes'); if(!el) return;
+  if(sample || apiOff){ el.textContent=''; return; }
+  const r = S.restantes ?? LIMITE_SESSAO;
+  el.textContent = r>0 ? `Você tem ${r} ${r===1?'pergunta':'perguntas'} com o Lessy nesta demonstração.` : 'Você usou as perguntas desta demonstração. As perguntas rápidas continuam funcionando.';
+}
+(async () => {
+  try{ sample = window.claude ? await window.claude.use('sample') : null; }catch(e){ sample=null; }
+  if(!sample && apiOff){ $('#chatOff').hidden=false; }
+  renderRestantes();
+})();
+function contexto(){
+  const e=S.empresa, c=calc(e);
+  const ativ = {comercio:'comércio (vende produtos)', industria:'indústria', servicos:'serviços gerais', profissionais:'serviços técnicos/intelectuais'}[e.ativ];
+  const cli = {pf:'principalmente pessoas físicas', pj:'principalmente empresas', ambos:'pessoas e empresas'}[e.cli];
+  return `Você é o Lessy, um elefante branco simpático, mascote e assistente da Less Tax, que ajuda donos de pequenas empresas brasileiras a entender seus impostos.
+Regras: responda em português do Brasil, com linguagem simples, como um amigo explicando. No máximo 110 palavras. Sem juridiquês; se usar um termo técnico, explique em poucas palavras. Use os números da empresa quando ajudar. Deixe claro que os valores são estimativas. Nunca diga que a empresa deve mudar de regime ou tomar uma decisão tributária: para decisões, sugira falar com o especialista da Less Tax ou com o contador. Não invente leis, prazos ou números que não estão aqui. Sem markdown, sem listas longas.
+Hoje é ${new Date().toLocaleDateString('pt-BR')}.
+Empresa: ${e.nome}, atividade ${ativ}, vende para ${cli}.
+Por mês: faturamento ${fmt(e.fat)}, salários e pró-labore ${fmt(e.folha)}, outros custos ${fmt(e.custos)}.
+Estimativa: ${c.acima ? 'faturamento acima do limite do Simples Nacional' : `Simples Nacional, ${ANEXO_TXT[c.anexo]}, alíquota efetiva ${pct(c.aliq)}, imposto ${fmt(c.imposto)} por mês`}; lucro estimado ${fmt(c.lucro)} por mês; Fator R (folha/faturamento) ${pct(c.fatorR)}.${c.cpp ? ` Anexo IV: INSS patronal de ${fmt(c.cpp)} pago fora do DAS (já incluído no imposto).` : ''}${c.monoMes ? ` Possível imposto pago em dobro em produtos monofásicos: ${fmt(c.monoMes)} por mês (estimativa, depende de o contador já separar essas vendas).` : ''}
+Fatos que você pode usar: no Simples, serviços técnicos pagam o Anexo V, mais caro, se a folha for menor que 28% do faturamento, e o Anexo III se for 28% ou mais (Fator R). Na reforma tributária, de 1 a 30 de setembro de 2026 as empresas do Simples escolhem se pagam os novos impostos IBS e CBS dentro do DAS ou por fora (Simples híbrido), valendo para o primeiro semestre de 2027; dá para cancelar até novembro e há nova janela em março de 2027; quem vende para empresas pode ficar mais competitivo no híbrido, porque o cliente aproveita mais crédito. MEI fica fora dessa escolha.`;
+}
+function renderChat(){
+  const box=$('#chat'); box.innerHTML='';
+  if(!S.chat.length){ box.appendChild(botBubble(`Oi! Eu sou o Lessy, um elefante que não esquece nenhum imposto. Já olhei os números da ${S.empresa.nome}. Pode perguntar o que quiser.`).row); }
+  S.chat.forEach(m => {
+    if(m.role==='user'){ const d=document.createElement('div'); d.className='msg me'; d.textContent=m.content; box.appendChild(d); }
+    else box.appendChild(botBubble(m.content).row);
+  });
+}
+function respostaPronta(q){
+  const e=S.empresa, c=calc(e); const t=q.toLowerCase();
+  if(t.includes('por que') && t.includes('imposto')) return c.acima
+    ? `Como sua empresa fatura acima do limite do Simples, os impostos são calculados de outro jeito, e aí vale uma análise com o especialista.`
+    : `No Simples, a ${e.nome} paga uma guia só, o DAS, que junta vários impostos: federais, o INSS da empresa e o ICMS ou ISS. Hoje ela leva cerca de ${pct(c.aliq)} do que entra, uns ${fmt(c.das)} por mês. Quanto mais a empresa faturou nos últimos 12 meses, maior a faixa. São estimativas.`;
+  if(t.includes('fator r')) return `O Fator R é a conta salários e pró-labore divididos pelo faturamento. Em serviços técnicos, se der 28% ou mais, a empresa paga o Anexo III, mais barato; abaixo disso, paga o Anexo V. Na ${e.nome}, ele está em ${pct(c.fatorR)}.${e.ativ==='profissionais' ? '' : ' Na sua atividade ele não muda o anexo.'} Antes de mexer no pró-labore, confirme com seu contador.`;
+  if(t.includes('reforma')) return `A partir de 2027 entram dois impostos novos, o IBS e a CBS. Até 30 de setembro de 2026, empresas do Simples escolhem se pagam esses impostos dentro do DAS, como hoje, ou por fora, no Simples híbrido. ${e.cli==='pj' ? 'Como você vende mais para empresas, o híbrido pode deixar seu preço mais competitivo.' : 'Quem vende para consumidor final costuma ficar bem no DAS.'} Na dúvida, fale com um especialista antes de decidir.`;
+  if(t.includes('lucro')) return c.lucro>0
+    ? `Hoje sobram cerca de ${fmt(c.lucro)} por mês, ${pct(c.lucro/e.fat)} do que entra. O que mais pesa são ${e.custos>=e.folha ? 'os outros custos' : 'salários e pró-labore'}. Veja os cartões do Raio-X: se aparecer uma oportunidade, ela vem com o valor estimado. Um especialista confirma se ela vale para você.`
+    : `Pelas contas, as saídas estão maiores que o faturamento. Vale olhar primeiro os custos e depois conversar com um especialista sobre os impostos.`;
+  return S.restantes===0
+    ? 'Você já usou as perguntas desta demonstração. As perguntas rápidas acima continuam funcionando, e para o resto um especialista pode ajudar: toque em "Falar com um especialista" no Raio-X.'
+    : 'Nesta versão de demonstração eu respondo às perguntas rápidas acima. Para outras dúvidas, toque em "Falar com um especialista" no Raio-X.';
+}
+async function ask(text){
+  text = (text||'').trim(); if(!text || busy) return;
+  if(!sample && (apiOff || S.restantes===0)){
+    S.chat.push({role:'user', content:text});
+    S.chat.push({role:'assistant', content: respostaPronta(text)});
+    save(); renderChat(); $('#q').value=''; $('#chat').lastElementChild.scrollIntoView({block:'end'}); return;
+  }
+  if(!sample) return perguntarApi(text);
+  busy=true; $('#chatErr').textContent=''; $('#q').value='';
+  S.chat.push({role:'user', content:text}); renderChat();
+  const bb=botBubble('Pensando...'); const out=bb.b; $('#chat').appendChild(bb.row);
+  bb.row.scrollIntoView({block:'end'});
+  $('#send').hidden=true; $('#stop').hidden=false;
+  const turns = S.chat.slice(-6).map((m,i,arr)=>({role:m.role, content: i===0 ? contexto()+'\n\nPergunta: '+m.content : m.content}));
+  if(turns[0].role!=='user') turns.shift();
+  ctl = new AbortController();
+  try{
+    const {text:ans} = await sample(turns, {signal:ctl.signal, modelTier:'quick', cache:false, onText:({text})=>{ out.textContent=text; }});
+    S.chat.push({role:'assistant', content:ans});
+  }catch(e){
+    if(e && e.text){ S.chat.push({role:'assistant', content:e.text}); }
+    else { S.chat.pop(); }
+    const msg = {not_granted:'Para usar o assistente, é preciso permitir o acesso ao Claude.', rate_limited:'Muitas perguntas seguidas. Espere um pouco e tente de novo.', cancelled:''}[e&&e.code];
+    $('#chatErr').textContent = msg ?? 'Não foi possível responder agora. Tente de novo em instantes.';
+    if(e && e.code==='not_granted'){ $('#send').disabled=true; $('#q').disabled=true; }
+  }finally{
+    busy=false; save(); renderChat(); $('#send').hidden=false; $('#stop').hidden=true;
+  }
+}
+async function perguntarApi(text){
+  busy=true; $('#chatErr').textContent=''; $('#q').value='';
+  const historico = S.chat.slice(-4);
+  S.chat.push({role:'user', content:text}); renderChat();
+  const bb=botBubble('Pensando...'); $('#chat').appendChild(bb.row); bb.row.scrollIntoView({block:'end'});
+  $('#send').disabled=true;
+  try{
+    const r = await fetch('/api/lessy', {method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({sid: sid(), pergunta: text, empresa: S.empresa, historico})});
+    if(r.status===404){ apiOff = true; S.chat.push({role:'assistant', content: respostaPronta(text)}); return; }
+    const data = await r.json().catch(() => ({}));
+    if(typeof data.restantes==='number') S.restantes = data.restantes;
+    if(r.ok && data.resposta){ S.chat.push({role:'assistant', content:data.resposta}); }
+    else if(r.status===429){ S.chat.push({role:'assistant', content: data.mensagem || 'Você usou as perguntas desta demonstração. Para continuar, fale com um especialista.'}); }
+    else { S.chat.pop(); $('#chatErr').textContent = data.mensagem || 'Não foi possível responder agora. Tente de novo em instantes.'; }
+  }catch(e){
+    /* Sem servidor (ex.: aberto fora da Vercel) ou sem internet: usa as respostas prontas */
+    apiOff = true; $('#chatOff').hidden = false;
+    S.chat.push({role:'assistant', content: respostaPronta(text)});
+  }finally{
+    busy=false; $('#send').disabled=false; save(); renderChat(); renderRestantes();
+    const last=$('#chat').lastElementChild; if(last) last.scrollIntoView({block:'end'});
+  }
+}
+$('#send').onclick = () => { if(!$('#q').value.trim()){ $('#chatErr').textContent='Escreva uma pergunta primeiro.'; return; } ask($('#q').value); };
+$('#q').addEventListener('keydown', e => { if(e.key==='Enter') $('#send').click(); });
+$('#q').addEventListener('input', () => $('#chatErr').textContent='');
+$('#stop').onclick = () => ctl && ctl.abort();
+$('#chips').addEventListener('click', e => { const b=e.target.closest('.chip'); if(b) ask(b.textContent); });
+
+/* ---------- recomeçar ---------- */
+let resetArmed = null;
+$('#reset').onclick = () => {
+  const b = $('#reset');
+  if(!resetArmed){
+    b.textContent = 'Toque de novo para apagar tudo'; b.style.color='var(--danger)'; b.style.borderColor='var(--danger)';
+    resetArmed = setTimeout(() => { resetArmed=null; b.textContent='Recomeçar simulação'; b.style.color='var(--muted)'; b.style.borderColor='var(--line)'; }, 4000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed=null;
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  S = {empresa:null, missoes:{}, historico:[], chat:[]};
+  ['#f-nome','#f-fat','#f-folha','#f-custos'].forEach(id => $(id).value='');
+  setSeg('#f-ativ',''); setSeg('#f-cli',''); $('#f-err').textContent='';
+  b.textContent='Recomeçar simulação'; b.style.color='var(--muted)'; b.style.borderColor='var(--line)';
+  ['v-raiox','v-missoes','v-chat','v-garantir'].forEach(v=>$('#'+v).hidden=true);
+  $('#tabs').hidden=true; setSeg('#f-mono',''); $('#mono-wrap').hidden=true; $('#missionPill').hidden=true; $('#onboarding').hidden=false; window.scrollTo(0,0);
+};
+
+/* ---------- início ---------- */
+if(S.empresa) startApp();
+</script>
+</body>
+</html>
