@@ -653,6 +653,28 @@ $('#ex-close').onclick = () => $('#expert').hidden=true;
 $('#expert').addEventListener('click', e => { if(e.target.id==='expert') $('#expert').hidden=true; });
 document.addEventListener('keydown', e => { if(e.key==='Escape') $('#expert').hidden=true; });
 ['#ex-nome','#ex-zap'].forEach(id=>$(id).addEventListener('input',()=>$('#ex-err').textContent=''));
+
+/* Máscara do telefone: 47999307777 vira (47) 99930-7777; aceita fixo com 10 dígitos */
+function formatarTelefone(txt){
+  const d = txt.replace(/\D/g,'').slice(0,11);
+  if(!d.length) return '';
+  if(d.length<=2) return '('+d;
+  if(d.length<=6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  if(d.length<=10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
+$('#ex-zap').addEventListener('input', () => {
+  const el = $('#ex-zap');
+  const pos = el.selectionStart ?? el.value.length;
+  const antes = el.value.slice(0,pos).replace(/\D/g,'').length;   /* dígitos antes do cursor */
+  el.value = formatarTelefone(el.value);
+  let n=0, p=el.value.length;
+  if(antes===0){ p = el.value.length ? 1 : 0; }
+  else for(let i=0;i<el.value.length;i++){
+    if(/\d/.test(el.value[i])){ n++; if(n===antes){ p=i+1; break; } }
+  }
+  el.setSelectionRange(p,p);
+});
 $('#ex-send').onclick = () => {
   const nome = $('#ex-nome').value.trim();
   const zap = $('#ex-zap').value.trim();
