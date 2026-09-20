@@ -84,6 +84,8 @@ button{font:inherit; cursor:pointer}
 .note{border-radius:14px; overflow:hidden; display:flex; height:92px; border:2px solid var(--ink); position:relative}
 .note .part{height:100%; display:flex; align-items:flex-end; padding:8px; font-weight:700; font-family:var(--display); font-size:18px; color:#fff; min-width:0; transition:flex-grow .6s ease}
 .note .part.fina{padding:6px 2px; font-size:14px; justify-content:center}
+#ringArc{transition:stroke .5s ease, stroke-dashoffset .6s ease}
+@media (prefers-reduced-motion:reduce){#ringArc{transition:none}}
 .note .p-tax{background:var(--tax); color:#1b1400}
 .note .p-pay{background:var(--payroll)}
 .note .p-cost{background:var(--cost); color:#0f1a16}
@@ -169,7 +171,7 @@ nav.tabs svg{width:22px; height:22px}
 
       <div><label for="f-fat">Quanto entra por mês</label><div class="money"><input id="f-fat" inputmode="decimal" placeholder="60.000"></div></div>
       <div><label for="f-folha">Salários e pró-labore por mês</label><div class="money"><input id="f-folha" inputmode="decimal" placeholder="12.000"></div><p class="hint">Inclua o que os sócios retiram como pró-labore.</p></div>
-      <div><label for="f-custos">Outros custos por mês</label><div class="money"><input id="f-custos" inputmode="decimal" placeholder="20.000"></div><p class="hint">Aluguel, fornecedores, mercadorias, contas, sistemas.</p></div>
+      <div><label for="f-custos">Custo total por mês</label><div class="money"><input id="f-custos" inputmode="decimal" placeholder="20.000"></div><p class="hint">Aluguel, fornecedores, mercadorias, contas, sistemas. Sem contar salários e pró-labore, que já entram acima.</p></div>
 
       <div id="mono-wrap" hidden>
         <label id="lbl-mono">Quanto das suas vendas é de bebidas, cosméticos, remédios, autopeças ou pneus?</label>
@@ -247,7 +249,7 @@ nav.tabs svg{width:22px; height:22px}
         <div class="stack" style="gap:8px; margin-top:8px">
           <div><label for="h-fat">Quanto entrou nesse mês</label><div class="money"><input id="h-fat" inputmode="decimal" placeholder="45.000"></div></div>
           <div><label for="h-folha">Salários e pró-labore</label><div class="money"><input id="h-folha" inputmode="decimal" placeholder="9.000"></div></div>
-          <div><label for="h-custos">Outros custos</label><div class="money"><input id="h-custos" inputmode="decimal" placeholder="20.000"></div></div>
+          <div><label for="h-custos">Custo total</label><div class="money"><input id="h-custos" inputmode="decimal" placeholder="20.000"></div></div>
         </div>
         <p class="err" id="hist-err" role="alert"></p>
         <div class="row">
@@ -394,7 +396,7 @@ const CONFIG = {
     chaveCopia: '47999306802',                       // o que o botão copia (DDD + número)
     nome: 'Matheus Giussepe Possamai de Carlucci',   // nome do recebedor
     cidade: 'Joinville',                             // cidade do recebedor
-    valor: 10         // valor simbólico em reais
+    valor: 4.90       // valor simbólico em reais
   },
   whatsapp: '5547999306802',  // número da equipe com DDI e DDD
   intro: 'As primeiras empresas que apoiarem a Less Tax recebem:',
@@ -520,7 +522,7 @@ function renderRaiox(){
   const parts = [
     {k:'Impostos', v:c.imposto, cls:'p-tax', col:'var(--tax)'},
     {k:'Salários e pró-labore', v:e.folha, cls:'p-pay', col:'var(--payroll)'},
-    {k:'Outros custos', v:e.custos, cls:'p-cost', col:'var(--cost)'},
+    {k:'Custo total', v:e.custos, cls:'p-cost', col:'var(--cost)'},
     {k: c.lucro>=0 ? 'Lucro' : 'Prejuízo', v:c.lucro, cls:'p-profit', col: c.lucro>=0 ? 'var(--green)':'var(--danger)'}
   ];
   const base = c.lucro>=0 ? e.fat : e.fat - c.lucro;
@@ -764,10 +766,24 @@ function missionDefs(){
     {id:'mes', t:'Registrar os números do mês', d:'Quem acompanha todo mês percebe os problemas antes.'}
   ];
 }
+/* Cor da saúde tributária: 90 a 100 verde, 50 a 89 amarelo, 0 a 49 vermelho,
+   com degradê dentro de cada faixa para a mudança não ser em degrau. */
+function corSaude(score){
+  const v = Math.max(0, Math.min(100, Number(score)||0));
+  const faixa = v >= 90 ? {de:90, ate:100, h:[150,162], s:[58,62], l:[44,40]}
+              : v >= 50 ? {de:50, ate:89,  h:[40,58],   s:[92,86], l:[50,47]}
+              :           {de:0,  ate:49,  h:[0,20],    s:[75,78], l:[50,52]};
+  const t = (v - faixa.de) / (faixa.ate - faixa.de);
+  const entre = ([a,b]) => Math.round(a + (b-a)*t);
+  return `hsl(${entre(faixa.h)} ${entre(faixa.s)}% ${entre(faixa.l)}%)`;
+}
+
 function renderMissoes(){
   const defs = missionDefs(); const done = defs.filter(d=>S.missoes[d.id]).length; const score = done*20;
   $('#missionPill').textContent = `Missões ${done}/5`;
   $('#ringArc').setAttribute('stroke-dashoffset', 251.3*(1-score/100)); $('#ringTxt').textContent = score;
+  const cor = corSaude(score);
+  $('#ringArc').setAttribute('stroke', cor); $('#lvl').style.color = cor;
   $('#lvl').textContent = score>=80 ? 'No controle' : score>=40 ? 'Atento' : 'Começando';
   $('#lvlHint').textContent = done===5 ? 'Todas as missões feitas. Volte no próximo mês.' : `Faltam ${5-done} ${5-done===1?'missão':'missões'} para ficar no controle.`;
   $('#missionList').innerHTML = defs.map(d => {
@@ -922,7 +938,7 @@ function contexto(){
 Regras: responda em português do Brasil, com linguagem simples, como um amigo explicando. No máximo 110 palavras. Sem juridiquês; se usar um termo técnico, explique em poucas palavras. Use os números da empresa quando ajudar. Deixe claro que os valores são estimativas. Nunca diga que a empresa deve mudar de regime ou tomar uma decisão tributária: para decisões, sugira falar com o especialista da Less Tax ou com o contador. Não invente leis, prazos ou números que não estão aqui. Sem markdown, sem listas longas.
 Hoje é ${new Date().toLocaleDateString('pt-BR')}.
 Empresa: ${e.nome}, atividade ${ativ}, vende para ${cli}.
-Por mês: faturamento ${fmt(e.fat)}, salários e pró-labore ${fmt(e.folha)}, outros custos ${fmt(e.custos)}.
+Por mês: faturamento ${fmt(e.fat)}, salários e pró-labore ${fmt(e.folha)}, custo total ${fmt(e.custos)} (fora a folha).
 Estimativa: ${c.acima ? 'faturamento acima do limite do Simples Nacional' : `Simples Nacional, ${ANEXO_TXT[c.anexo]}, alíquota efetiva ${pct(c.aliq)}, imposto ${fmt(c.imposto)} por mês`}; lucro estimado ${fmt(c.lucro)} por mês; Fator R (folha/faturamento) ${pct(c.fatorR)}.${c.cpp ? ` Anexo IV: INSS patronal de ${fmt(c.cpp)} pago fora do DAS (já incluído no imposto).` : ''}${c.monoMes ? ` Possível imposto pago em dobro em produtos monofásicos: ${fmt(c.monoMes)} por mês (estimativa, depende de o contador já separar essas vendas).` : ''}
 Fatos que você pode usar: no Simples, serviços técnicos pagam o Anexo V, mais caro, se a folha for menor que 28% do faturamento, e o Anexo III se for 28% ou mais (Fator R). Na reforma tributária, de 1 a 30 de setembro de 2026 as empresas do Simples escolhem se pagam os novos impostos IBS e CBS dentro do DAS ou por fora (Simples híbrido), valendo para o primeiro semestre de 2027; dá para cancelar até novembro e há nova janela em março de 2027; quem vende para empresas pode ficar mais competitivo no híbrido, porque o cliente aproveita mais crédito. MEI fica fora dessa escolha.`;
 }
@@ -942,7 +958,7 @@ function respostaPronta(q){
   if(t.includes('fator r')) return `O Fator R é a conta salários e pró-labore divididos pelo faturamento. Em serviços técnicos, se der 28% ou mais, a empresa paga o Anexo III, mais barato; abaixo disso, paga o Anexo V. Na ${e.nome}, ele está em ${pct(c.fatorR)}.${e.ativ==='profissionais' ? '' : ' Na sua atividade ele não muda o anexo.'} Antes de mexer no pró-labore, confirme com seu contador.`;
   if(t.includes('reforma')) return `A partir de 2027 entram dois impostos novos, o IBS e a CBS. Até 30 de setembro de 2026, empresas do Simples escolhem se pagam esses impostos dentro do DAS, como hoje, ou por fora, no Simples híbrido. ${e.cli==='pj' ? 'Como você vende mais para empresas, o híbrido pode deixar seu preço mais competitivo.' : 'Quem vende para consumidor final costuma ficar bem no DAS.'} Na dúvida, fale com um especialista antes de decidir.`;
   if(t.includes('lucro')) return c.lucro>0
-    ? `Hoje sobram cerca de ${fmt(c.lucro)} por mês, ${pct(c.lucro/e.fat)} do que entra. O que mais pesa são ${e.custos>=e.folha ? 'os outros custos' : 'salários e pró-labore'}. Veja os cartões do Raio-X: se aparecer uma oportunidade, ela vem com o valor estimado. Um especialista confirma se ela vale para você.`
+    ? `Hoje sobram cerca de ${fmt(c.lucro)} por mês, ${pct(c.lucro/e.fat)} do que entra. O que mais pesa ${e.custos>=e.folha ? 'é o custo total' : 'são salários e pró-labore'}. Veja os cartões do Raio-X: se aparecer uma oportunidade, ela vem com o valor estimado. Um especialista confirma se ela vale para você.`
     : `Pelas contas, as saídas estão maiores que o faturamento. Vale olhar primeiro os custos e depois conversar com um especialista sobre os impostos.`;
   return S.restantes===0
     ? 'Você já usou as perguntas desta demonstração. As perguntas rápidas acima continuam funcionando, e para o resto um especialista pode ajudar: toque em "Falar com um especialista" no Raio-X.'

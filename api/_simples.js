@@ -83,7 +83,7 @@ function dadosEmpresa(e) {
       + (c.cpp ? `, mais ${fmt(c.cpp)} de INSS patronal fora do DAS` : '');
   return `Dados da empresa (informados pelo usuário, estimativas):
 Empresa: ${e.nome}; atividade: ${ATIVIDADES[e.ativ]}; vende para ${CLIENTES[e.cli]}.
-Por mês: faturamento ${fmt(e.fat)}, salários e pró-labore ${fmt(e.folha)}, outros custos ${fmt(e.custos)}.
+Por mês: faturamento ${fmt(e.fat)}, salários e pró-labore ${fmt(e.folha)}, custo total ${fmt(e.custos)} (fora a folha).
 Estimativa: ${estimativa}; impostos totais ${fmt(c.imposto)} por mês; lucro ${fmt(c.lucro)} por mês; Fator R ${pct(c.fatorR)}.`
     + (c.monoMes ? `\nPossível imposto pago em dobro em monofásicos: ${fmt(c.monoMes)} por mês (só vale se o contador ainda não separa essas vendas).` : '');
 }
