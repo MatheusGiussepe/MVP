@@ -109,6 +109,27 @@ nav.tabs button[aria-current="page"]{color:var(--green); background:var(--green-
 nav.tabs svg{width:22px; height:22px}
 /* missões */
 .ring{display:flex; align-items:center; gap:18px}
+/* Anel da saúde: o degradê corre ao longo da volta, do vermelho ao verde.
+   O segundo conic cobre com a cor do trilho tudo o que passa da nota. */
+@property --p{syntax:'<number>'; inherits:false; initial-value:0}
+.anel-wrap{position:relative; width:96px; height:96px; flex:none}
+.anel{width:100%; height:100%; border-radius:50%;
+  background:
+    conic-gradient(#0000 0 calc(var(--p) * 1%), var(--line) calc(var(--p) * 1%) 100%),
+    conic-gradient(
+      hsl(0 85% 46%)    0%,
+      hsl(8 76% 52%)   25%,
+      hsl(18 66% 62%)  49%,
+      hsl(45 96% 50%)  50%,
+      hsl(48 92% 56%)  79%,
+      hsl(150 40% 60%) 80%,
+      hsl(162 72% 34%) 100%);
+  -webkit-mask:radial-gradient(farthest-side, #0000 calc(100% - 11px), #000 calc(100% - 11px));
+  mask:radial-gradient(farthest-side, #0000 calc(100% - 11px), #000 calc(100% - 11px));
+  transition:--p .7s ease}
+.anel-num{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--display); font-weight:700; font-size:22px; color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.anel{transition:none}}
 .mission{display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--line)}
 .check{flex:none; width:26px; height:26px; border-radius:50%; border:2px solid var(--line); display:grid; place-items:center; margin-top:2px}
 .mission.done .check{background:var(--green); border-color:var(--green); color:#fff}
@@ -268,11 +289,10 @@ nav.tabs svg{width:22px; height:22px}
   <main id="v-missoes" hidden>
     <div class="stack">
       <div class="ring">
-        <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
-          <circle cx="48" cy="48" r="40" fill="none" stroke="var(--line)" stroke-width="10"/>
-          <circle id="ringArc" cx="48" cy="48" r="40" fill="none" stroke="var(--green)" stroke-width="10" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3" transform="rotate(-90 48 48)"/>
-          <text id="ringTxt" x="48" y="55" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-weight="700" font-size="22" fill="var(--ink)">0</text>
-        </svg>
+        <div class="anel-wrap">
+          <div class="anel" id="ringArc" role="img" aria-label="Saúde tributária: 0 de 100"></div>
+          <span class="anel-num" id="ringTxt">0</span>
+        </div>
         <div>
           <p class="muted">Saúde tributária</p>
           <h2 id="lvl">Começando</h2>
@@ -766,13 +786,13 @@ function missionDefs(){
     {id:'mes', t:'Registrar os números do mês', d:'Quem acompanha todo mês percebe os problemas antes.'}
   ];
 }
-/* Cor da saúde tributária: 90 a 100 verde, 50 a 89 amarelo, 0 a 49 vermelho,
-   com degradê dentro de cada faixa para a mudança não ser em degrau. */
+/* Cor do nível, na mesma escala do anel: vermelho forte embaixo indo a fraco,
+   amarelo forte a partir de 50, e de 80 a 100 um verde que vai de fraco a forte. */
 function corSaude(score){
   const v = Math.max(0, Math.min(100, Number(score)||0));
-  const faixa = v >= 90 ? {de:90, ate:100, h:[150,162], s:[58,62], l:[44,40]}
-              : v >= 50 ? {de:50, ate:89,  h:[40,58],   s:[92,86], l:[50,47]}
-              :           {de:0,  ate:49,  h:[0,20],    s:[75,78], l:[50,52]};
+  const faixa = v >= 80 ? {de:80, ate:100, h:[150,162], s:[40,72], l:[60,34]}
+              : v >= 50 ? {de:50, ate:79,  h:[45,48],   s:[96,92], l:[50,56]}
+              :           {de:0,  ate:49,  h:[0,18],    s:[85,66], l:[46,62]};
   const t = (v - faixa.de) / (faixa.ate - faixa.de);
   const entre = ([a,b]) => Math.round(a + (b-a)*t);
   return `hsl(${entre(faixa.h)} ${entre(faixa.s)}% ${entre(faixa.l)}%)`;
@@ -781,9 +801,10 @@ function corSaude(score){
 function renderMissoes(){
   const defs = missionDefs(); const done = defs.filter(d=>S.missoes[d.id]).length; const score = done*20;
   $('#missionPill').textContent = `Missões ${done}/5`;
-  $('#ringArc').setAttribute('stroke-dashoffset', 251.3*(1-score/100)); $('#ringTxt').textContent = score;
-  const cor = corSaude(score);
-  $('#ringArc').setAttribute('stroke', cor); $('#lvl').style.color = cor;
+  $('#ringArc').style.setProperty('--p', score);
+  $('#ringArc').setAttribute('aria-label', `Saúde tributária: ${score} de 100`);
+  $('#ringTxt').textContent = score;
+  $('#lvl').style.color = corSaude(score);
   $('#lvl').textContent = score>=80 ? 'No controle' : score>=40 ? 'Atento' : 'Começando';
   $('#lvlHint').textContent = done===5 ? 'Todas as missões feitas. Volte no próximo mês.' : `Faltam ${5-done} ${5-done===1?'missão':'missões'} para ficar no controle.`;
   $('#missionList').innerHTML = defs.map(d => {
