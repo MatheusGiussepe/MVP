@@ -314,14 +314,15 @@ nav.tabs svg{width:22px; height:22px}
       <button class="btn" id="ex-send">Pedir contato</button>
     </div>
     <div id="ex-ok" hidden class="stack">
-      <p class="headline">Pedido registrado.</p>
-      <p class="muted">Neste protótipo nenhum dado é enviado. Na versão real, o especialista responderia pelo WhatsApp em até 1 dia útil.</p>
+      <p class="headline">Falta um toque.</p>
+      <p class="muted">Abra o WhatsApp com a mensagem já pronta. É por ali que o especialista da Less Tax responde.</p>
+      <a class="btn" id="ex-zaplink" target="_blank" rel="noopener" style="text-align:center; text-decoration:none">Abrir o WhatsApp</a>
     </div>
     <button class="btn ghost" id="ex-close">Fechar</button>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="vendor/qrcode.min.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const fmt = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
@@ -653,8 +654,14 @@ $('#expert').addEventListener('click', e => { if(e.target.id==='expert') $('#exp
 document.addEventListener('keydown', e => { if(e.key==='Escape') $('#expert').hidden=true; });
 ['#ex-nome','#ex-zap'].forEach(id=>$(id).addEventListener('input',()=>$('#ex-err').textContent=''));
 $('#ex-send').onclick = () => {
-  if(!$('#ex-nome').value.trim()){ $('#ex-err').textContent='Informe seu nome.'; return; }
-  if($('#ex-zap').value.replace(/\D/g,'').length<10){ $('#ex-err').textContent='Informe um WhatsApp com DDD.'; return; }
+  const nome = $('#ex-nome').value.trim();
+  const zap = $('#ex-zap').value.trim();
+  if(!nome){ $('#ex-err').textContent='Informe seu nome.'; return; }
+  if(zap.replace(/\D/g,'').length<10){ $('#ex-err').textContent='Informe um WhatsApp com DDD.'; return; }
+  const e = S.empresa || {};
+  const msg = `Olá! Quero falar com um especialista da Less Tax.\nNome: ${nome}\nMeu WhatsApp: ${zap}`
+    + (e.nome ? `\nEmpresa: ${e.nome}` : '');
+  $('#ex-zaplink').href = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`;
   $('#ex-form').hidden=true; $('#ex-ok').hidden=false; S.missoes.especialista=true; save(); renderAll();
 };
 
