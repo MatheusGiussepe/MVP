@@ -83,6 +83,7 @@ button{font:inherit; cursor:pointer}
 /* Raio-X: a cédula */
 .note{border-radius:14px; overflow:hidden; display:flex; height:92px; border:2px solid var(--ink); position:relative}
 .note .part{height:100%; display:flex; align-items:flex-end; padding:8px; font-weight:700; font-family:var(--display); font-size:18px; color:#fff; min-width:0; transition:flex-grow .6s ease}
+.note .part.fina{padding:6px 2px; font-size:14px; justify-content:center}
 .note .p-tax{background:var(--tax); color:#1b1400}
 .note .p-pay{background:var(--payroll)}
 .note .p-cost{background:var(--cost); color:#0f1a16}
@@ -528,7 +529,12 @@ function renderRaiox(){
     if(p.cls==='p-profit' && p.v<0) return;
     const share = p.v/base; const d = document.createElement('div');
     d.className='part '+p.cls; d.style.flexGrow = Math.max(share,0.0001); d.style.flexBasis='0';
-    d.textContent = share>=0.09 ? Math.round(p.v/e.fat*100) : '';
+    /* Faixa estreita ainda mostra o número, em corpo menor e centralizado.
+       Abaixo de 4,5% não cabe nem assim, e aí a legenda abaixo dá o valor. */
+    if(share >= 0.045){
+      d.textContent = Math.round(p.v/e.fat*100);
+      if(share < 0.12) d.classList.add('fina');
+    } else d.textContent = '';
     note.appendChild(d);
   });
   note.setAttribute('aria-label', parts.map(p => `${p.k}: ${Math.round(p.v/e.fat*100)} reais`).join(', '));
