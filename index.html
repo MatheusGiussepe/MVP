@@ -59,6 +59,9 @@ button{font:inherit; cursor:pointer}
 .mespicker{display:flex; align-items:stretch; gap:8px}
 .mespicker .seta{flex:none; width:48px; display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1; padding:0}
 .mespicker .seta[disabled]{opacity:.35; border-color:var(--line); color:var(--muted)}
+/* Topo do Raio-X: nome da empresa de um lado, editar do outro */
+.cabeca{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.cabeca > button{flex:none; margin-top:4px}
 .mespicker .campo{flex:1; position:relative}
 .mespicker .atual{width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
   background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; text-align:center;
@@ -196,9 +199,12 @@ nav.tabs svg{width:22px; height:22px}
   <!-- RAIO-X -->
   <main id="v-raiox" hidden>
     <div class="stack">
-      <div>
-        <p class="muted" id="rx-regime"></p>
-        <h1 id="rx-nome"></h1>
+      <div class="cabeca">
+        <div>
+          <p class="muted" id="rx-regime"></p>
+          <h1 id="rx-nome"></h1>
+        </div>
+        <button class="btn small ghost" id="editData">Editar empresa</button>
       </div>
 
       <div class="stack" style="gap:12px">
@@ -245,7 +251,6 @@ nav.tabs svg{width:22px; height:22px}
         <p class="err" id="hist-err" role="alert"></p>
         <div class="row">
           <button class="btn small" id="saveMonth">Registrar mês</button>
-          <button class="btn small ghost" id="editData">Atualizar números</button>
         </div>
       </div>
 
