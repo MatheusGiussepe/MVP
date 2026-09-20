@@ -195,6 +195,11 @@ nav.tabs svg{width:22px; height:22px}
         <div class="hist" id="rx-hist"></div>
         <p class="hint" id="rx-hist-hint"></p>
         <div style="margin-top:10px"><label for="mesRef">Mês de referência</label><input type="month" id="mesRef"></div>
+        <div class="stack" style="gap:8px; margin-top:8px">
+          <div><label for="h-fat">Quanto entrou nesse mês</label><div class="money"><input id="h-fat" inputmode="decimal" placeholder="45.000"></div></div>
+          <div><label for="h-folha">Salários e pró-labore</label><div class="money"><input id="h-folha" inputmode="decimal" placeholder="9.000"></div></div>
+          <div><label for="h-custos">Outros custos</label><div class="money"><input id="h-custos" inputmode="decimal" placeholder="20.000"></div></div>
+        </div>
         <p class="err" id="hist-err" role="alert"></p>
         <div class="row">
           <button class="btn small" id="saveMonth">Registrar mês</button>
@@ -398,7 +403,7 @@ function formatarValor(txt){
   if(i>=0 && !inteiro) inteiro = '0';
   return inteiro + dec;
 }
-['#f-fat','#f-folha','#f-custos'].forEach(id => {
+['#f-fat','#f-folha','#f-custos','#h-fat','#h-folha','#h-custos'].forEach(id => {
   const el = $(id);
   el.addEventListener('input', () => {
     const pos = el.selectionStart ?? el.value.length;
@@ -541,12 +546,23 @@ function renderHist(c){
   const h = S.historico.slice(-6);
   const box = $('#rx-hist');
   const multiAno = new Set(h.map(x=>x.ano)).size > 1;
-  if(!h.length){ box.innerHTML=''; $('#rx-hist-hint').textContent = 'Registre seus números todo mês para ver se o lucro está subindo ou caindo.'; return; }
+  preencherCamposMes();
+  if(!h.length){
+    /* Convite: barras apagadas mostram o que vai aparecer ali. */
+    box.innerHTML = [[34,52],[40,58],[30,64]].map(([a,b]) => `<div class="col"><div style="display:flex;gap:3px;align-items:flex-end;height:90px;width:100%;justify-content:center;opacity:.22">
+      <div class="bar tx" style="height:${a}px;width:16px"></div><div class="bar" style="height:${b}px;width:16px"></div></div><span>—</span></div>`).join('');
+    $('#rx-hist-hint').textContent = 'Lance seus últimos 3 meses para ver se o seu lucro está subindo ou caindo.';
+    return;
+  }
+  if(h.length < 3){
+    const faltam = 3 - h.length;
+    $('#rx-hist-hint').textContent = faltam===1 ? 'Falta 1 mês para dar pra ver a tendência.' : `Faltam ${faltam} meses para dar pra ver a tendência.`;
+  }
   const max = Math.max(...h.map(x=>Math.max(x.lucro,x.imposto)), .3);
   box.innerHTML = h.map(x => `<div class="col"><div style="display:flex;gap:3px;align-items:flex-end;height:90px;width:100%;justify-content:center">
     <div class="bar tx" style="height:${Math.max(x.imposto,0)/max*90}px;width:16px" title="Imposto ${pct(x.imposto)}"></div>
     <div class="bar" style="height:${Math.max(x.lucro,0)/max*90}px;width:16px" title="Lucro ${pct(x.lucro)}"></div></div><span>${x.mes}${multiAno ? '/'+String(x.ano).slice(2) : ''}</span></div>`).join('');
-  $('#rx-hist-hint').textContent = 'Amarelo: impostos. Verde: lucro. Em % do faturamento.';
+  if(h.length >= 3) $('#rx-hist-hint').textContent = 'Amarelo: impostos. Verde: lucro. Em % do faturamento.';
 }
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -574,6 +590,16 @@ function normalizarHistorico(){
   if(mudou) save();
 }
 
+/* Os campos abrem com os números atuais da empresa: a pessoa só ajusta o que mudou. */
+function preencherCamposMes(){
+  if(!S.empresa || !$('#h-fat')) return;
+  if($('#h-fat').value.trim()) return;               // já tem algo digitado: não mexe
+  const v = n => Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
+  $('#h-fat').value = v(S.empresa.fat);
+  $('#h-folha').value = v(S.empresa.folha);
+  $('#h-custos').value = v(S.empresa.custos);
+}
+
 function iniciarSeletorMes(){
   const el = $('#mesRef'); if(!el) return;
   const hoje = new Date();
@@ -582,7 +608,7 @@ function iniciarSeletorMes(){
   if(!el.value) el.value = campoMes(mesFechado());
 }
 iniciarSeletorMes();
-$('#mesRef').addEventListener('input', () => $('#hist-err').textContent='');
+['#mesRef','#h-fat','#h-folha','#h-custos'].forEach(id => $(id).addEventListener('input', () => $('#hist-err').textContent=''));
 
 $('#saveMonth').onclick = () => {
   const v = $('#mesRef').value;
@@ -593,9 +619,13 @@ $('#saveMonth').onclick = () => {
   if(ano*12+mesN > hoje.getFullYear()*12 + hoje.getMonth()+1){
     $('#hist-err').textContent='Esse mês ainda não chegou.'; return;
   }
+  const fat = parseMoney($('#h-fat').value), folha = parseMoney($('#h-folha').value)||0, custos = parseMoney($('#h-custos').value)||0;
+  if(!(fat>0)){ $('#hist-err').textContent='Informe quanto entrou nesse mês.'; return; }
+  if(folha<0 || custos<0){ $('#hist-err').textContent='Use valores positivos.'; return; }
   $('#hist-err').textContent='';
-  const c = calc(S.empresa);
-  const entry = {ano, mesN, mes:MESES[mesN-1], lucro:c.lucro/S.empresa.fat, imposto:c.acima?0:c.aliq};
+  const empresaMes = {...S.empresa, fat, folha, custos};
+  const c = calc(empresaMes);
+  const entry = {ano, mesN, mes:MESES[mesN-1], lucro:c.lucro/fat, imposto:c.acima?0:c.aliq};
   const i = S.historico.findIndex(x => x.ano===ano && x.mesN===mesN);
   const atualizou = i>=0;
   if(atualizou) S.historico[i]=entry; else S.historico.push(entry);
