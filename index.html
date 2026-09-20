@@ -310,12 +310,16 @@ nav.tabs svg{width:22px; height:22px}
     <div id="ex-form" class="stack">
       <div><label for="ex-nome">Seu nome</label><input id="ex-nome" autocomplete="name"></div>
       <div><label for="ex-zap">WhatsApp</label><input id="ex-zap" inputmode="tel" autocomplete="tel" placeholder="(47) 99999-9999"></div>
+      <label for="ex-lgpd" style="display:flex; gap:10px; align-items:flex-start; cursor:pointer; font-weight:400">
+        <input type="checkbox" id="ex-lgpd" style="flex:none; width:18px; height:18px; margin-top:2px; accent-color:var(--green)">
+        <span class="hint" style="margin:0">Autorizo a Less Tax a usar meu nome, WhatsApp e os números que informei para falar comigo sobre esta análise. Não repassamos para terceiros, e é só pedir no WhatsApp para apagar.</span>
+      </label>
       <p class="err" id="ex-err" role="alert"></p>
       <button class="btn" id="ex-send">Pedir contato</button>
     </div>
     <div id="ex-ok" hidden class="stack">
-      <p class="headline">Falta um toque.</p>
-      <p class="muted">Abra o WhatsApp com a mensagem já pronta. É por ali que o especialista da Less Tax responde.</p>
+      <p class="headline">Contato registrado.</p>
+      <p class="muted">Um especialista da Less Tax vai falar com você. Se quiser adiantar, abra a conversa agora com a mensagem já pronta.</p>
       <a class="btn" id="ex-zaplink" target="_blank" rel="noopener" style="text-align:center; text-decoration:none">Abrir o WhatsApp</a>
     </div>
     <button class="btn ghost" id="ex-close">Fechar</button>
@@ -675,15 +679,31 @@ $('#ex-zap').addEventListener('input', () => {
   }
   el.setSelectionRange(p,p);
 });
-$('#ex-send').onclick = () => {
+$('#ex-lgpd').addEventListener('change', () => $('#ex-err').textContent='');
+$('#ex-send').onclick = async () => {
+  const b = $('#ex-send');
   const nome = $('#ex-nome').value.trim();
   const zap = $('#ex-zap').value.trim();
   if(!nome){ $('#ex-err').textContent='Informe seu nome.'; return; }
   if(zap.replace(/\D/g,'').length<10){ $('#ex-err').textContent='Informe um WhatsApp com DDD.'; return; }
+  if(!$('#ex-lgpd').checked){ $('#ex-err').textContent='Marque a autorização para continuarmos.'; return; }
+
   const e = S.empresa || {};
   const msg = `Olá! Quero falar com um especialista da Less Tax.\nNome: ${nome}\nMeu WhatsApp: ${zap}`
     + (e.nome ? `\nEmpresa: ${e.nome}` : '');
   $('#ex-zaplink').href = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`;
+
+  /* Grava o contato. Se o servidor não responder, seguimos pelo WhatsApp: o lead não se perde. */
+  b.disabled = true; const rotulo = b.textContent; b.textContent = 'Registrando...';
+  try{
+    const r = await fetch('/api/lead', {method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({nome, zap, consentimento:true, empresa:S.empresa || null})});
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok && r.status !== 404 && data.mensagem && r.status < 500){
+      $('#ex-err').textContent = data.mensagem; b.disabled=false; b.textContent=rotulo; return;
+    }
+  }catch(err){ /* sem rede: o botão do WhatsApp continua valendo */ }
+  b.disabled = false; b.textContent = rotulo;
   $('#ex-form').hidden=true; $('#ex-ok').hidden=false; S.missoes.especialista=true; save(); renderAll();
 };
 
